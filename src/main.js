@@ -112,11 +112,14 @@ function renderTempChart(hourly) {
   const polyPts = pts.map(p => p.join(',')).join(' ');
   const fillPts = [...pts.map(p => p.join(',')), `${W - pad},${H}`, `${pad},${H}`].join(' ');
 
-  const dots = pts.map(([x, y]) =>
-    `<circle cx="${x}" cy="${y}" r="2.5" fill="#89ceff" opacity="0.8"/>`
+  // Her bir saat noktasını SVG içinde bir "dot" olarak çiziyoruz.
+  // Bu dot'lar üzerine geldiğinde tooltip açılacak.
+  const dots = pts.map(([x, y], i) =>
+    `<circle cx="${x}" cy="${y}" r="4" fill="#89ceff" opacity="0.85" data-index="${i}" class="temp-dot" style="cursor:pointer;"/>`
   ).join('');
 
-  $('temp-chart').innerHTML = `
+  const chartSvg = $('temp-chart');
+  chartSvg.innerHTML = `
     <defs>
       <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="#89ceff" stop-opacity="0.35"/>
@@ -127,6 +130,37 @@ function renderTempChart(hourly) {
     <polyline points="${polyPts}" fill="none" stroke="#89ceff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     ${dots}
   `;
+
+  const tooltip = $('chart-tooltip');
+  const chartWrapper = chartSvg.parentElement;
+
+  // Her temp-dot için mouse enter / leave olayları ekliyoruz.
+  // Böylece kullanıcı fareyi noktaya taşıdığında saat ve sıcaklık gösterilecek.
+  chartSvg.querySelectorAll('circle.temp-dot').forEach(circle => {
+    circle.addEventListener('mouseenter', () => {
+      const index = Number(circle.dataset.index);
+      const temp = temps[index];
+      const hour = times[index].split('T')[1].slice(0, 5);
+      tooltip.innerHTML = `
+        <span class="font-label-mono text-[10px] text-outline uppercase">${hour}</span>
+        <span class="font-headline-md">${Math.round(temp)}°C</span>
+      `;
+
+      const svgRect = chartSvg.getBoundingClientRect();
+      const wrapperRect = chartWrapper.getBoundingClientRect();
+      const x = (Number(circle.getAttribute('cx')) / W) * svgRect.width;
+      const left = Math.min(Math.max(x, 30), wrapperRect.width - 30);
+
+      tooltip.style.left = `${left}px`;
+      tooltip.classList.remove('hidden');
+      tooltip.classList.add('opacity-100');
+    });
+
+    circle.addEventListener('mouseleave', () => {
+      tooltip.classList.add('hidden');
+      tooltip.classList.remove('opacity-100');
+    });
+  });
 
   $('chart-labels').innerHTML = times
     .filter((_, i) => i % 4 === 0)
