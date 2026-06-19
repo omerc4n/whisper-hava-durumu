@@ -41,12 +41,16 @@ function showError(msg) {
   setTimeout(() => t.classList.add('hidden'), 4000);
 }
 
-async function fetchWeather(lat, lon, name, countryCode = 'TR') {
+async function fetchWeather(lat, lon, name, countryCode = '') {
   // Şehir her başarıyla çağrıldığında hafızaya kaydet (F5 koruması)
   localStorage.setItem('sonSehir', name);
   localStorage.setItem('sonEnlem', lat);
   localStorage.setItem('sonBoylam', lon);
-  localStorage.setItem('sonUlke', countryCode.toUpperCase());
+  if (countryCode) {
+    localStorage.setItem('sonUlke', countryCode.toUpperCase());
+  } else {
+    localStorage.removeItem('sonUlke');
+  }
 
   setLoading(true);
   try {
@@ -71,7 +75,7 @@ async function fetchWeather(lat, lon, name, countryCode = 'TR') {
   }
 }
 
-function render(data, name, countryCode = 'TR') {
+function render(data, name, countryCode = '') {
   const c = data.current;
   const wmo = WMO[c.weather_code] ?? { tr: 'Bilinmiyor', icon: 'cloud' };
 
@@ -80,7 +84,6 @@ function render(data, name, countryCode = 'TR') {
   $('about-title').textContent = name;
   $('about-text').textContent = `${wmo.tr} hava koşulları. Sıcaklık ${Math.round(c.temperature_2m)}°C.`;
   $('header-title').textContent = name.toUpperCase();
-  $('warning-text').classList.toggle('hidden', countryCode?.toUpperCase() === 'TR');
 
   $('humidity-value').innerHTML = `${c.relative_humidity_2m}<span class="text-primary/60 text-lg ml-1">%</span>`;
   $('humidity-bar').style.width = `${c.relative_humidity_2m}%`;
@@ -209,7 +212,7 @@ function renderHumidityBars(daily) {
 
 async function searchCities(q) {
   if (q.length < 2) return [];
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=tr&format=json&countryCode=TR`;
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=tr&format=json`;
   try {
     const res = await fetch(url);
     const data = await res.json();
@@ -254,7 +257,7 @@ function renderDropdown(results) {
   if (!results.length) { box.classList.add('hidden'); return; }
   box.innerHTML = results.map(r => {
     const label = r.admin1 ? `${r.name}, ${r.admin1}` : r.name;
-    return `<button class="w-full text-left px-4 py-3 hover:bg-surface-container-high font-label-mono text-sm text-on-surface border-b border-white/5 last:border-0 transition-colors" data-lat="${r.latitude}" data-lon="${r.longitude}" data-name="${label}">
+    return `<button class="w-full text-left px-4 py-3 hover:bg-surface-container-high font-label-mono text-sm text-on-surface border-b border-white/5 last:border-0 transition-colors" data-lat="${r.latitude}" data-lon="${r.longitude}" data-name="${label}" data-country="${r.country_code || ''}">
       <span class="text-primary">${r.name}</span>${r.admin1 ? `<span class="text-outline ml-2 text-[11px]">${r.admin1}</span>` : ''}
     </button>`;
   }).join('');
@@ -280,7 +283,7 @@ function init() {
     if (!btn) return;
     input.value = btn.dataset.name;
     results.classList.add('hidden');
-    fetchWeather(btn.dataset.lat, btn.dataset.lon, btn.dataset.name);
+    fetchWeather(btn.dataset.lat, btn.dataset.lon, btn.dataset.name, btn.dataset.country);
   });
 
   document.addEventListener('click', e => {
