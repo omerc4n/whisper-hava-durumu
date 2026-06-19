@@ -41,11 +41,12 @@ function showError(msg) {
   setTimeout(() => t.classList.add('hidden'), 4000);
 }
 
-async function fetchWeather(lat, lon, name) {
+async function fetchWeather(lat, lon, name, countryCode = 'TR') {
   // Şehir her başarıyla çağrıldığında hafızaya kaydet (F5 koruması)
   localStorage.setItem('sonSehir', name);
   localStorage.setItem('sonEnlem', lat);
   localStorage.setItem('sonBoylam', lon);
+  localStorage.setItem('sonUlke', countryCode.toUpperCase());
 
   setLoading(true);
   try {
@@ -62,7 +63,7 @@ async function fetchWeather(lat, lon, name) {
     const res = await fetch(url);
     if (!res.ok) throw new Error('API hatası');
     const data = await res.json();
-    render(data, name);
+    render(data, name, countryCode);
   } catch {
     showError('Hava durumu alınamadı. Lütfen tekrar deneyin.');
   } finally {
@@ -70,7 +71,7 @@ async function fetchWeather(lat, lon, name) {
   }
 }
 
-function render(data, name) {
+function render(data, name, countryCode = 'TR') {
   const c = data.current;
   const wmo = WMO[c.weather_code] ?? { tr: 'Bilinmiyor', icon: 'cloud' };
 
@@ -79,6 +80,7 @@ function render(data, name) {
   $('about-title').textContent = name;
   $('about-text').textContent = `${wmo.tr} hava koşulları. Sıcaklık ${Math.round(c.temperature_2m)}°C.`;
   $('header-title').textContent = name.toUpperCase();
+  $('warning-text').classList.toggle('hidden', countryCode?.toUpperCase() === 'TR');
 
   $('humidity-value').innerHTML = `${c.relative_humidity_2m}<span class="text-primary/60 text-lg ml-1">%</span>`;
   $('humidity-bar').style.width = `${c.relative_humidity_2m}%`;
@@ -220,17 +222,30 @@ async function searchCities(q) {
 async function locateByIP() {
   setLoading(true);
   try {
-    const res = await fetch('https://ipwho.is/?lang=tr');
-    const data = await res.json();
-    if (!data.success) throw new Error('IP konumu alınamadı');
+    const ipwho = await fetch('https://ipwho.is/?lang=tr');
+    const ipwhoData = await ipwho.json();
 
-    const lat = Number(data.latitude);
-    const lon = Number(data.longitude);
-    const name = data.city || data.region || data.country || 'Konumunuz';
-    fetchWeather(lat, lon, name);
+    let lat, lon, name, countryCode;
+    if (ipwhoData.success) {
+      lat = Number(ipwhoData.latitude);
+      lon = Number(ipwhoData.longitude);
+      name = ipwhoData.city || ipwhoData.region || ipwhoData.country || 'Konumunuz';
+      countryCode = ipwhoData.country_code;
+    } else {
+      const ipapi = await fetch('https://ipapi.co/json/');
+      if (!ipapi.ok) throw new Error('konum alınamadı');
+      const ipapiData = await ipapi.json();
+      lat = Number(ipapiData.latitude);
+      lon = Number(ipapiData.longitude);
+      name = ipapiData.city || ipapiData.region || ipapiData.country_name || 'Konumunuz';
+      countryCode = ipapiData.country_code;
+    }
+
+    if (!lat || !lon) throw new Error('Geçersiz koordinat');
+    fetchWeather(lat, lon, name, countryCode ?? 'TR');
   } catch {
     setLoading(false);
-    showError('IP üzerinden konum alınamadı. Lütfen tekrar deneyin.');
+    showError('konum alınamadı. Lütfen tekrar deneyin.');
   }
 }
 
@@ -280,11 +295,17 @@ function init() {
   const kayitliSehir = localStorage.getItem('sonSehir');
   const kayitliEnlem = localStorage.getItem('sonEnlem');
   const kayitliBoylam = localStorage.getItem('sonBoylam');
+  const kayitliUlke = localStorage.getItem('sonUlke');
 
   if (kayitliSehir && kayitliEnlem && kayitliBoylam) {
-    fetchWeather(parseFloat(kayitliEnlem), parseFloat(kayitliBoylam), kayitliSehir);
+    fetchWeather(
+      parseFloat(kayitliEnlem),
+      parseFloat(kayitliBoylam),
+      kayitliSehir,
+      kayitliUlke || 'TR'
+    );
   } else {
-    fetchWeather(41.0082, 28.9784, 'İstanbul');
+    fetchWeather(41.0082, 28.9784, 'İstanbul', 'TR');
   }
 }
 
