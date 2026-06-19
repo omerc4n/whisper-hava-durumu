@@ -6,9 +6,8 @@
   <meta name="description" content="Whisper Hava Durumu — Türkiye geneli ücretsiz hava durumu takibi">
   <title>Whisper Hava Durumu</title>
 
-  <!-- Script ve Link Etiketleri Head İçine Taşındı -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght=300;400;500;600;700&family=JetBrains+Mono:wght=400;500&family=Hanken+Grotesk:wght=400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
   
   <script>
@@ -24,8 +23,8 @@
             "surface-dim": "#0b1326",
             "secondary-container": "#6f00be",
             "primary-fixed": "#c9e6ff",
-            "primary-fixed-dim": "#a3d5ff", /* Eksik olan renk eklendi */
-            "secondary-fixed": "#e9d5ff", /* Eksik olan renk eklendi */
+            "primary-fixed-dim": "#a3d5ff", /* Eksik renk tanımı eklendi */
+            "secondary-fixed": "#e9d5ff", /* Eksik renk tanımı eklendi */
             "inverse-on-surface": "#283044",
             "secondary": "#ddb7ff",
             "on-surface": "#dae2fd",
@@ -49,15 +48,16 @@
             "outline": "#88929b"
           },
           fontFamily: {
-            "label-mono": ["JetBrains Mono"],
-            "display-hero": ["Space Grotesk"],
-            "headline-md": ["Space Grotesk"],
-            "body-md": ["Hanken Grotesk"]
+            /* Sınıf isimleri değiştirilmeden arkadaki fontlar modernize edildi */
+            "label-mono": ["Inter", "sans-serif"],       
+            "display-hero": ["Plus Jakarta Sans", "sans-serif"], 
+            "headline-md": ["Plus Jakarta Sans", "sans-serif"],  
+            "body-md": ["Inter", "sans-serif"]           
           },
           fontSize: {
             "label-mono": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "500" }],
-            "display-hero": ["72px", { lineHeight: "1", letterSpacing: "-0.04em", fontWeight: "700" }],
-            "headline-lg-mobile": ["24px", { lineHeight: "32px", fontWeight: "600" }],
+            "display-hero": ["72px", { lineHeight: "1", letterSpacing: "-0.04em", fontWeight: "800" }],
+            "headline-lg-mobile": ["24px", { lineHeight: "32px", fontWeight: "700" }],
             "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
             "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }]
           },
