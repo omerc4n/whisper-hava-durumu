@@ -222,9 +222,22 @@ function init() {
       }
     );
   });
+function init() {
+  // 1. Tarayıcı hafızasında kayıtlı şehir verisi var mı kontrol et
+  const kayıtlıSehir = localStorage.getItem('sonSehir');
+  const kayıtlıEnlem = localStorage.getItem('sonEnlem');
+  const kayıtlıBoylam = localStorage.getItem('sonBoylam');
 
-  // Default: Istanbul
-  fetchWeather(41.0082, 28.9784, 'İstanbul');
+  if (kayıtlıSehir && kayıtlıEnlem && kayıtlıBoylam) {
+    // 2. Eğer hafızada varsa, F5 sonrası o şehri yükle
+    fetchWeather(parseFloat(kayıtlıEnlem), parseFloat(kayıtlıBoylam), kayıtlıSehir);
+  } else {
+    // 3. Hafıza boşsa (siteye ilk kez giriliyorsa) varsayılan olarak İstanbul'u yükle
+    fetchWeather(41.0082, 28.9784, 'İstanbul');
+  }
+}
+
+init();
 }
 
 init();
