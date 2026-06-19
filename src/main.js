@@ -92,7 +92,23 @@ function render(data, name) {
   $('visibility-value').innerHTML = `${visKm}<span class="text-on-surface/60 text-lg ml-1">km</span>`;
 
   renderTempChart(data.hourly);
+  renderHourlyList(data.hourly);
   renderHumidityBars(data.daily);
+}
+
+function renderHourlyList(hourly) {
+  const temps = hourly.temperature_2m.slice(0, 24);
+  const times = hourly.time.slice(0, 24);
+
+  $('hourly-list').innerHTML = temps.map((temp, i) => {
+    const hour = times[i].split('T')[1].slice(0, 5);
+    return `
+      <div class="min-w-[4.75rem] shrink-0 rounded-xl border border-white/10 bg-surface-container/80 p-2 text-center">
+        <div class="font-label-mono text-[10px] text-outline uppercase">${hour}</div>
+        <div class="font-headline-md text-white mt-1">${Math.round(temp)}°</div>
+      </div>
+    `;
+  }).join('');
 }
 
 function renderTempChart(hourly) {
@@ -201,6 +217,23 @@ async function searchCities(q) {
   }
 }
 
+async function locateByIP() {
+  setLoading(true);
+  try {
+    const res = await fetch('https://ipwho.is/?lang=tr');
+    const data = await res.json();
+    if (!data.success) throw new Error('IP konumu alınamadı');
+
+    const lat = Number(data.latitude);
+    const lon = Number(data.longitude);
+    const name = data.city || data.region || data.country || 'Konumunuz';
+    fetchWeather(lat, lon, name);
+  } catch {
+    setLoading(false);
+    showError('IP üzerinden konum alınamadı. Lütfen tekrar deneyin.');
+  }
+}
+
 function renderDropdown(results) {
   const box = $('search-results');
   if (!results.length) { box.classList.add('hidden'); return; }
@@ -240,26 +273,7 @@ function init() {
   });
 
   $('location-btn').addEventListener('click', () => {
-    if (!navigator.geolocation) { showError('Tarayıcınız konumu desteklemiyor.'); return; }
-    setLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords: { latitude, longitude } }) => {
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=tr`
-          );
-          const d = await res.json();
-          const city = d.address?.city ?? d.address?.town ?? d.address?.village ?? d.address?.county ?? 'Konumunuz';
-          fetchWeather(latitude, longitude, city);
-        } catch {
-          fetchWeather(latitude, longitude, 'Konumunuz');
-        }
-      },
-      err => {
-        setLoading(false);
-        showError(err.code === err.PERMISSION_DENIED ? 'Konum izni reddedildi.' : 'Konum alınamadı.');
-      }
-    );
+    locateByIP();
   });
 
   // Tarayıcı hafızasını (localStorage) kontrol eden bölüm
