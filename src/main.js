@@ -1,5 +1,5 @@
 const WMO = {
-  0:  { tr: 'Açık',              icon: 'sunny' },
+  0:  { tr: 'Açık',            icon: 'sunny' },
   1:  { tr: 'Az Bulutlu',        icon: 'partly_cloudy_day' },
   2:  { tr: 'Parçalı Bulutlu',   icon: 'partly_cloudy_day' },
   3:  { tr: 'Kapalı',            icon: 'cloud' },
@@ -42,6 +42,11 @@ function showError(msg) {
 }
 
 async function fetchWeather(lat, lon, name) {
+  // Şehir her başarıyla çağrıldığında hafızaya kaydet (F5 koruması)
+  localStorage.setItem('sonSehir', name);
+  localStorage.setItem('sonEnlem', lat);
+  localStorage.setItem('sonBoylam', lon);
+
   setLoading(true);
   try {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
@@ -222,22 +227,18 @@ function init() {
       }
     );
   });
-function init() {
-  // 1. Tarayıcı hafızasında kayıtlı şehir verisi var mı kontrol et
-  const kayıtlıSehir = localStorage.getItem('sonSehir');
-  const kayıtlıEnlem = localStorage.getItem('sonEnlem');
-  const kayıtlıBoylam = localStorage.getItem('sonBoylam');
 
-  if (kayıtlıSehir && kayıtlıEnlem && kayıtlıBoylam) {
-    // 2. Eğer hafızada varsa, F5 sonrası o şehri yükle
-    fetchWeather(parseFloat(kayıtlıEnlem), parseFloat(kayıtlıBoylam), kayıtlıSehir);
+  // Tarayıcı hafızasını (localStorage) kontrol eden bölüm
+  const kayitliSehir = localStorage.getItem('sonSehir');
+  const kayitliEnlem = localStorage.getItem('sonEnlem');
+  const kayitliBoylam = localStorage.getItem('sonBoylam');
+
+  if (kayitliSehir && kayitliEnlem && kayitliBoylam) {
+    fetchWeather(parseFloat(kayitliEnlem), parseFloat(kayitliBoylam), kayitliSehir);
   } else {
-    // 3. Hafıza boşsa (siteye ilk kez giriliyorsa) varsayılan olarak İstanbul'u yükle
     fetchWeather(41.0082, 28.9784, 'İstanbul');
   }
 }
 
-init();
-}
-
+// Uygulamayı tek bir kez başlatıyoruz
 init();
