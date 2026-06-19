@@ -290,10 +290,6 @@ function init() {
     if (!$('search-wrapper').contains(e.target)) results.classList.add('hidden');
   });
 
-  $('location-btn').addEventListener('click', () => {
-    locateByIP();
-  });
-
   // Tarayıcı hafızasını (localStorage) kontrol eden bölüm
   const kayitliSehir = localStorage.getItem('sonSehir');
   const kayitliEnlem = localStorage.getItem('sonEnlem');
@@ -305,10 +301,10 @@ function init() {
       parseFloat(kayitliEnlem),
       parseFloat(kayitliBoylam),
       kayitliSehir,
-      kayitliUlke || 'TR'
+      kayitliUlke || ''
     );
   } else {
-    fetchWeather(41.0082, 28.9784, 'İstanbul', 'TR');
+    locateByIP();
   }
 }
 
