@@ -311,3 +311,13 @@ function init() {
 
 // Uygulamayı tek bir kez başlatıyoruz
 init();
+
+// Sayfadaki 'current-year' ID'li elementi buluyoruz
+const currentYearElement = document.getElementById('current-year');
+
+if (currentYearElement) {
+  const bugun = new Date();
+
+// Tarihi Türkçe formatına (gün.ay.yıl) çeviriyoruz
+  currentYearElement.textContent = bugun.toLocaleDateString('tr-TR');
+}
