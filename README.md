@@ -2,7 +2,7 @@
 
 > Türkiye geneli ücretsiz hava durumu ve yağmur tahmini sitesi. Stitch tasarımından esinlenilmiştir.
 
-🌐 **Live Demo:** [https://omerc4n.vercel.app/](https://omerc4n.vercel.app/)
+🌐 **Live Demo:** [https://whisper-hava-durumu.vercel.app/](https://whisper-hava-durumu.vercel.app/)
 
 ---
 
