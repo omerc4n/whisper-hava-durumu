@@ -136,7 +136,7 @@ Bu proje MIT Lisansı altında lisanslanmıştır. Ayrıntılar için [LICENSE](
 ## 📧 İletişim
 
 - GitHub: [@omerc4n](https://github.com/omerc4n)
-- Site: [https://omerc4n.vercel.app/](https://omerc4n.vercel.app/)
+- Site: [Discord](https://discord.com/users/787270008324882433)
 
 ---
 
