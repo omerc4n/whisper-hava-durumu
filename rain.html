@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html class="dark" lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Whisper Hava Durumu — Yağmur Tahmini">
+  <title>Whisper Yağmur Durumu</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon-rain.svg">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-variant": "#2d3449",
+            "outline-variant": "#3e4850",
+            "surface-container": "#171f33",
+            "on-error": "#690005",
+            "surface-dim": "#0b1326",
+            "secondary-container": "#6f00be",
+            "primary-fixed": "#c9e6ff",
+            "primary-fixed-dim": "#a3d5ff",
+            "secondary-fixed": "#e9d5ff",
+            "inverse-on-surface": "#283044",
+            "secondary": "#ddb7ff",
+            "on-surface": "#dae2fd",
+            "tertiary": "#ffb690",
+            "surface": "#0b1326",
+            "tertiary-container": "#fa7417",
+            "primary": "#89ceff",
+            "on-primary-container": "#003751",
+            "surface-container-low": "#131b2e",
+            "error": "#ffb4ab",
+            "surface-bright": "#31394d",
+            "surface-container-high": "#222a3d",
+            "background": "#0b1326",
+            "on-secondary": "#490080",
+            "primary-container": "#0ea5e9",
+            "on-surface-variant": "#bec8d2",
+            "on-background": "#dae2fd",
+            "surface-tint": "#89ceff",
+            "surface-container-lowest": "#060e20",
+            "on-primary": "#00344d",
+            "outline": "#88929b"
+          },
+          fontFamily: {
+            "label-mono": ["Inter", "sans-serif"],       
+            "display-hero": ["Plus Jakarta Sans", "sans-serif"], 
+            "headline-md": ["Plus Jakarta Sans", "sans-serif"],  
+            "body-md": ["Inter", "sans-serif"]           
+          },
+          fontSize: {
+            "label-mono": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "500" }],
+            "display-hero": ["72px", { lineHeight: "1", letterSpacing: "-0.04em", fontWeight: "800" }],
+            "headline-lg-mobile": ["24px", { lineHeight: "32px", fontWeight: "700" }],
+            "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
+            "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }]
+          },
+          spacing: {
+            container_padding: "1.5rem"
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0b1326;
+      color: #dae2fd;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100dvh;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.4);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    }
+    .neon-glow-primary { box-shadow: 0 0 15px rgba(137, 206, 255, 0.3); }
+    .neon-glow-secondary { box-shadow: 0 0 15px rgba(221, 183, 255, 0.3); }
+    .neon-glow-tertiary { box-shadow: 0 0 15px rgba(255, 182, 144, 0.3); }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #0b1326; }
+    ::-webkit-scrollbar-thumb { background: #2d3449; border-radius: 10px; }
+    #search-results { max-height: 320px; overflow-y: auto; }
+    #rain-chart { min-height: 10rem; }
+  </style>
+</head>
+<body class="font-body-md text-body-md overflow-x-hidden selection:bg-secondary/30 selection:text-white">
+
+  <div id="loading-overlay" class="fixed inset-0 z-[100] bg-surface/80 backdrop-blur-sm flex items-center justify-center">
+    <div class="glass-card rounded-xl px-8 py-6 flex flex-col items-center gap-3">
+      <div class="w-10 h-10 border-2 border-secondary border-t-transparent rounded-full animate-spin"></div>
+      <p class="font-label-mono text-sm text-on-surface-variant">Yağmur verisi yükleniyor...</p>
+    </div>
+  </div>
+
+  <div id="error-toast" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-[90] glass-card border-error/40 text-error px-4 py-3 rounded-xl font-label-mono text-sm max-w-md text-center shadow-lg"></div>
+
+  <header class="sticky top-0 z-50 bg-surface-container/70 backdrop-blur-xl border-b border-white/10 shadow-lg shadow-secondary/5 flex items-center justify-between px-container_padding py-4 w-full">
+    <div class="flex items-center gap-2 min-w-0">
+      <span class="material-symbols-outlined text-secondary shrink-0" style="font-variation-settings: 'FILL' 1;">grain</span>
+      <div class="min-w-0">
+        <p class="font-label-mono text-[10px] text-outline uppercase tracking-widest leading-none mb-0.5">Whisper</p>
+        <h1 id="header-title" class="font-display-hero text-headline-lg-mobile text-secondary tracking-tight truncate">YAĞMUR</h1>
+      </div>
+    </div>
+    <a href="/" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 transition-colors border border-primary/40 text-primary font-label-mono text-sm uppercase tracking-wider shrink-0">
+      <span class="material-symbols-outlined text-lg">cloud</span>
+      Ana Sayfa
+    </a>
+  </header>
+
+  <main class="px-container_padding pt-6 pb-12 space-y-8 max-w-2xl mx-auto lg:max-w-4xl">
+    <div id="search-wrapper" class="relative">
+      <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+        <span class="material-symbols-outlined text-outline text-xl">search</span>
+      </div>
+      <input id="search-input" class="w-full bg-surface-container-low border-b border-outline/30 focus:border-secondary focus:ring-0 text-on-surface font-label-mono py-4 pl-12 pr-4 transition-all outline-none rounded-t-xl" placeholder="Şehir veya ilçe ara..." type="search" autocomplete="off">
+      <div id="search-results" class="hidden absolute left-0 right-0 top-full z-40 glass-card rounded-b-xl border border-white/10 shadow-2xl"></div>
+    </div>
+
+    <section class="space-y-6">
+      <div class="glass-card rounded-xl p-8 flex flex-col items-center justify-center text-center relative overflow-hidden group">
+        <div class="absolute -top-24 -right-24 w-48 h-48 bg-secondary/10 blur-3xl rounded-full"></div>
+        <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-tertiary/10 blur-3xl rounded-full"></div>
+        <h2 id="rain-percent" class="font-display-hero text-white text-[80px] leading-none mb-2 tracking-tighter drop-shadow-2xl">--%</h2>
+        <div id="rain-status" class="flex items-center gap-2 text-on-surface-variant font-label-mono text-label-mono uppercase tracking-widest mb-6">
+          <span class="material-symbols-outlined text-sm">grain</span>
+          Yükleniyor...
+        </div>
+        <div class="space-y-3 max-w-sm">
+          <h3 id="location-title" class="font-headline-md text-headline-md text-secondary-fixed">Konumunuz</h3>
+          <p id="location-text" class="font-body-md text-on-surface-variant leading-relaxed italic opacity-80">Konum seçildiğinde burada yağmur bilgileri görünecek.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="glass-card rounded-xl p-5 space-y-1 group hover:border-secondary/40 transition-colors">
+        <div class="flex justify-between items-start">
+          <span class="font-label-mono text-label-mono text-outline uppercase tracking-wider">Yağış Miktarı</span>
+          <span class="material-symbols-outlined text-secondary text-xl">water_drop</span>
+        </div>
+        <div id="precipitation-value" class="text-2xl font-headline-md text-on-surface">--<span class="text-secondary/60 text-lg ml-1">mm</span></div>
+      </div>
+      <div class="glass-card rounded-xl p-5 space-y-1 group hover:border-tertiary/40 transition-colors">
+        <div class="flex justify-between items-start">
+          <span class="font-label-mono text-label-mono text-outline uppercase tracking-wider">Yağış Saati</span>
+          <span class="material-symbols-outlined text-tertiary text-xl">schedule</span>
+        </div>
+        <div id="rain-hours-value" class="text-2xl font-headline-md text-on-surface">--<span class="text-tertiary/60 text-lg ml-1">saat</span></div>
+      </div>
+      <div class="glass-card rounded-xl p-5 space-y-1 group hover:border-primary/40 transition-colors">
+        <div class="flex justify-between items-start">
+          <span class="font-label-mono text-label-mono text-outline uppercase tracking-wider">Max İhtimal</span>
+          <span class="material-symbols-outlined text-primary text-xl">cloud</span>
+        </div>
+        <div id="max-probability" class="text-2xl font-headline-md text-on-surface">--%</div>
+      </div>
+      <div class="glass-card rounded-xl p-5 space-y-1 group hover:border-on-surface/40 transition-colors">
+        <div class="flex justify-between items-start">
+          <span class="font-label-mono text-label-mono text-outline uppercase tracking-wider">Ort. İhtimal</span>
+          <span class="material-symbols-outlined text-on-surface text-xl">bar_chart</span>
+        </div>
+        <div id="avg-probability" class="text-2xl font-headline-md text-on-surface">--%</div>
+      </div>
+      <div class="glass-card rounded-xl p-5 space-y-1 group hover:border-tertiary/40 transition-colors">
+        <div class="flex justify-between items-start">
+          <span class="font-label-mono text-label-mono text-outline uppercase tracking-wider">Doğuş Saati</span>
+          <span class="material-symbols-outlined text-tertiary text-xl">light_mode</span>
+        </div>
+        <div id="sunrise-value" class="text-2xl font-headline-md text-on-surface">--:--</div>
+      </div>
+      <div class="glass-card rounded-xl p-5 space-y-1 group hover:border-tertiary/40 transition-colors">
+        <div class="flex justify-between items-start">
+          <span class="font-label-mono text-label-mono text-outline uppercase tracking-wider">Batış Saati</span>
+          <span class="material-symbols-outlined text-tertiary text-xl">nights_stay</span>
+        </div>
+        <div id="sunset-value" class="text-2xl font-headline-md text-on-surface">--:--</div>
+      </div>
+    </section>
+
+    <section class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h4 class="font-label-mono text-label-mono text-outline uppercase tracking-[0.2em]">24 Saatlik Yağmur İhtimali</h4>
+        <div class="w-3 h-3 rounded-full bg-secondary"></div>
+      </div>
+      <div class="glass-card rounded-xl p-6 h-48 relative overflow-hidden flex items-end">
+        <svg id="rain-chart" class="w-full h-full" viewBox="0 0 400 120" preserveAspectRatio="none"></svg>
+        <div id="chart-tooltip" class="absolute top-10 glass-card rounded px-2 py-1 flex items-center gap-2 border-secondary/30 hidden" style="transform: translateX(-50%);"></div>
+      </div>
+      <div id="chart-labels" class="flex justify-between font-label-mono text-[10px] text-outline px-2"></div>
+      <div id="hourly-list" class="flex gap-2 overflow-x-auto text-[11px] text-on-surface/80 font-label-mono px-1 pt-3"></div>
+    </section>
+
+    <section class="space-y-4">
+      <h4 class="font-label-mono text-label-mono text-outline uppercase tracking-[0.2em]">7 Günlük Yağış Miktarı</h4>
+      <div id="daily-precipitation" class="glass-card rounded-xl p-6 flex items-end justify-between gap-2 h-40"></div>
+    </section>
+  </main>
+
+  <footer class="text-center pb-8 font-label-mono text-[10px] text-outline uppercase tracking-widest">
+    <a href="https://github.com/omerc4n/whisper-hava-durumu" target="_blank" rel="noopener noreferrer" class="hover:text-white transition-colors">
+      GitHub
+    </a> 
+    • Whisper Yağmur Tahmini • Dünya Hava Durumu •
+    <a href="https://www.weatherapi.com/" target="_blank" rel="noopener noreferrer" class="hover:text-white transition-colors">
+      WeatherAPI
+    </a>
+    <div id="current-year" class="mt-1 text-outline"></div>
+  </footer>
+
+  <script type="module" src="/src/rain.js"></script>
+</body>
+</html>
