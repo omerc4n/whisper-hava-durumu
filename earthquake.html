@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html class="dark" lang="tr">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Whisper Hava Durumu — Deprem Takibi">
+  <title>Whisper Deprem Türkiye</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon-quake.svg">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-variant": "#353534",
+            "surface-container-low": "#1c1b1b",
+            "on-error": "#690005",
+            "secondary-fixed": "#ffdbd0",
+            "surface-tint": "#e9c400",
+            "error-container": "#93000a",
+            "surface-container-highest": "#353534",
+            "inverse-on-surface": "#313030",
+            "tertiary-container": "#cfdaf2",
+            "surface-elevated": "#1E1E1E",
+            "primary-fixed-dim": "#e9c400",
+            "inverse-primary": "#705d00",
+            "background": "#131313",
+            "secondary": "#ffb59e",
+            "surface-container-lowest": "#0e0e0e",
+            "secondary-container": "#ff571a",
+            "on-surface": "#e5e2e1",
+            "on-secondary-container": "#521300",
+            "on-primary-fixed": "#221b00",
+            "error": "#ffb4ab",
+            "secondary-fixed-dim": "#ffb59e",
+            "primary-container": "#ffd700",
+            "tertiary-fixed": "#d8e3fb",
+            "on-tertiary": "#263143",
+            "on-secondary": "#5e1700",
+            "inverse-surface": "#e5e2e1",
+            "on-background": "#e5e2e1",
+            "alert-high": "#FF4D00",
+            "surface-container-high": "#2a2a2a",
+            "surface-container": "#201f1f",
+            "on-tertiary-fixed": "#111c2d",
+            "on-primary-fixed-variant": "#544600",
+            "surface-bright": "#393939",
+            "on-tertiary-fixed-variant": "#3c475a",
+            "on-primary-container": "#705e00",
+            "primary-fixed": "#ffe16d",
+            "on-surface-variant": "#d0c6ab",
+            "surface-dim": "#131313",
+            "outline": "#999077",
+            "on-secondary-fixed": "#3a0b00",
+            "grid-line": "#262626",
+            "tertiary-fixed-dim": "#bcc7de",
+            "on-error-container": "#ffdad6",
+            "primary": "#fff6df",
+            "surface": "#131313",
+            "alert-medium": "#FBBC05",
+            "on-tertiary-container": "#545f74",
+            "on-primary": "#3a3000",
+            "tertiary": "#f4f6ff",
+            "outline-variant": "#4d4732",
+            "alert-low": "#4ADE80",
+            "alert-critical": "#FF0000",
+            "on-secondary-fixed-variant": "#852400"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "margin-mobile": "16px",
+            "gutter": "24px",
+            "margin-desktop": "40px",
+            "container-max": "1280px",
+            "base": "4px"
+          },
+          fontFamily: {
+            "headline-lg": ["Inter"],
+            "label-md": ["JetBrains Mono"],
+            "label-sm": ["JetBrains Mono"],
+            "headline-md": ["Inter"],
+            "body-md": ["Inter"],
+            "body-lg": ["Inter"]
+          },
+          fontSize: {
+            "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+            "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "500" }],
+            "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+            "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+  <style>
+    body {
+      background-color: #131313;
+      background-image:
+        linear-gradient(to right, #262626 1px, transparent 1px),
+        linear-gradient(to bottom, #262626 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: #e5e2e1;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #131313;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #4d4732;
+      border-radius: 2px;
+    }
+
+    .glow-pulse {
+      animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse-glow {
+
+      0%,
+      100% {
+        filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.4));
+        opacity: 1;
+      }
+
+      50% {
+        filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
+        opacity: 0.8;
+      }
+    }
+
+    .map-scan-line {
+      background: linear-gradient(to bottom, transparent, rgba(255, 215, 0, 0.03), transparent);
+      height: 120px;
+      width: 100%;
+      position: absolute;
+      animation: scan 10s linear infinite;
+    }
+
+    @keyframes scan {
+      0% {
+        top: -120px;
+      }
+
+      100% {
+        top: 100%;
+      }
+    }
+
+    /* Leaflet custom styling */
+    .leaflet-bar {
+      border: 1px solid #262626 !important;
+      box-shadow: none !important;
+      border-radius: 4px !important;
+      overflow: hidden;
+    }
+
+    .leaflet-bar a {
+      background-color: #1E1E1E !important;
+      color: #e5e2e1 !important;
+      border-bottom: 1px solid #262626 !important;
+      transition: all 0.2s;
+    }
+
+    .leaflet-bar a:hover {
+      background-color: #2a2a2a !important;
+      color: #ffd700 !important;
+    }
+
+    .leaflet-bar a.leaflet-disabled {
+      background-color: #131313 !important;
+      color: #4d4732 !important;
+    }
+
+    .leaflet-container {
+      background: #0e0e0e !important;
+      outline: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background: #1E1E1E !important;
+      color: #e5e2e1 !important;
+      border: 1px solid #262626 !important;
+      border-radius: 6px !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+      padding: 0 !important;
+    }
+
+    .leaflet-popup-content {
+      margin: 0 !important;
+      width: 220px !important;
+    }
+
+    .leaflet-popup-tip {
+      background: #1E1E1E !important;
+      border: 1px solid #262626 !important;
+    }
+
+    /* Custom Map Marker Classes */
+    .custom-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .marker-inner {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid currentColor;
+      box-shadow: 0 0 10px currentColor;
+      transition: all 0.3s ease;
+    }
+
+    .marker-halo {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.2;
+      transition: all 0.3s ease;
+    }
+
+    .marker-pulse {
+      position: absolute;
+      width: 250%;
+      height: 250%;
+      border-radius: 50%;
+      border: 1.5px solid currentColor;
+      opacity: 0;
+      animation: marker-pulse-anim 2s infinite ease-out;
+      pointer-events: none;
+    }
+
+    @keyframes marker-pulse-anim {
+      0% {
+        transform: scale(0.4);
+        opacity: 0.9;
+      }
+
+      100% {
+        transform: scale(2.0);
+        opacity: 0;
+      }
+    }
+
+    /* Active selected marker */
+    .custom-marker.active-marker .marker-inner {
+      transform: scale(1.6);
+      border-color: #ffd700 !important;
+      background: #ffd700 !important;
+      box-shadow: 0 0 25px #ffd700 !important;
+    }
+
+    .custom-marker.active-marker .marker-halo {
+      transform: scale(2.0);
+      background-color: #ffd700 !important;
+      opacity: 0.4;
+    }
+
+    /* Hover and Active Marker Magnitude Badge */
+    .custom-marker:hover::after,
+    .custom-marker.active-marker::after {
+      content: attr(data-mag);
+      position: absolute;
+      top: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1E1E1E;
+      color: #ffd700;
+      border: 1px solid #ffd700;
+      padding: 1px 4px;
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: bold;
+      border-radius: 3px;
+      white-space: nowrap;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+      z-index: 1000;
+      pointer-events: none;
+    }
+
+
+    /* User Location Marker */
+    .user-location-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .user-location-inner {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #0ea5e9;
+      border: 2.5px solid #fff;
+      box-shadow: 0 0 12px #0ea5e9;
+    }
+
+    .user-location-pulse {
+      position: absolute;
+      width: 320%;
+      height: 320%;
+      border-radius: 50%;
+      background: #0ea5e9;
+      opacity: 0.3;
+      animation: user-pulse-anim 2.5s infinite ease-out;
+      pointer-events: none;
+    }
+
+    @keyframes user-pulse-anim {
+      0% {
+        transform: scale(0.3);
+        opacity: 0.7;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 0;
+      }
+    }
+
+    /* Sismograf SVG drawing */
+    @keyframes seismo-draw {
+      from {
+        stroke-dashoffset: 1000;
+      }
+
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    .seismo-line {
+      stroke-dasharray: 1000;
+      stroke-dashoffset: 1000;
+      animation: seismo-draw 2.5s ease forwards;
+    }
+
+    /* Glass Effect UI elements */
+    .glass-card {
+      background: rgba(30, 30, 30, 0.75);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Sidebar card hover accent line */
+    .event-card {
+      border-left-width: 4px;
+      transition: all 0.25s ease;
+    }
+
+    /* Responsive layout height controls */
+    @media (max-width: 1023px) {
+      body {
+        overflow-y: auto;
+      }
+
+      main {
+        height: auto;
+        overflow: visible;
+      }
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen lg:h-screen font-body-md">
+
+  <div id="loading-overlay"
+    class="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center">
+    <div class="glass-card rounded px-8 py-6 flex flex-col items-center gap-3 border border-grid-line shadow-2xl">
+      <div class="w-10 h-10 border-2 border-primary-container border-t-transparent rounded-full animate-spin"></div>
+      <p class="font-label-sm text-xs text-on-surface-variant">Deprem verileri ve sismik harita yükleniyor...</p>
+    </div>
+  </div>
+
+  <div id="error-toast"
+    class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-[90] glass-card border border-error-container text-error px-4 py-2.5 rounded font-label-sm text-xs max-w-md text-center shadow-lg">
+  </div>
+
+  <!-- TopAppBar -->
+  <header
+    class="z-[80] bg-surface border-b border-grid-line flex flex-col sm:flex-row justify-between items-center px-4 lg:px-10 py-3 sm:py-0 h-auto sm:h-16 gap-3 sm:gap-0 flex-shrink-0">
+    <div class="flex items-center gap-4 w-full sm:w-auto">
+      <span class="material-symbols-outlined text-primary-container text-2xl pulse-quake"
+        style="font-variation-settings: 'FILL' 1;">sensors</span>
+      <div class="flex flex-col">
+        <h1 class="font-headline-md text-headline-md font-bold text-primary-container tracking-tighter leading-none">
+          WHISPER-DEPREM</h1>
+        <span class="text-[10px] text-on-surface-variant tracking-widest uppercase font-semibold mt-0.5">TÜRKİYE</span>
+      </div>
+    </div>
+
+    <!-- Autocomplete Search Wrapper -->
+    <div class="relative w-full sm:w-80 md:w-96 group">
+      <span
+        class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+      <input id="search-input"
+        class="w-full bg-surface-container border border-grid-line py-2 pl-10 pr-4 text-sm text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all placeholder:text-on-surface-variant font-label-sm rounded"
+        placeholder="Bölge veya şehir ara (örn. İzmir, İstanbul)..." type="search" autocomplete="off" />
+      <div id="search-results"
+        class="hidden absolute left-0 right-0 top-full mt-1 z-[100] glass-card rounded border border-grid-line max-h-64 overflow-y-auto shadow-2xl">
+      </div>
+    </div>
+
+    <!-- Navigation links & UTC Clock -->
+    <div
+      class="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto shrink-0 border-t sm:border-t-0 border-grid-line pt-2.5 sm:pt-0">
+      <div class="flex items-center gap-3">
+        <a href="/"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded bg-surface-container border border-grid-line hover:border-primary-container text-on-surface-variant hover:text-primary-container transition-colors font-label-sm text-xs">
+          <span class="material-symbols-outlined text-base">cloud</span>
+          <span class="hidden md:inline">Hava Durumu</span>
+        </a>
+        <a href="/rain.html"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded bg-surface-container border border-grid-line hover:border-primary-container text-on-surface-variant hover:text-primary-container transition-colors font-label-sm text-xs">
+          <span class="material-symbols-outlined text-base">grain</span>
+          <span class="hidden md:inline">Yağmur</span>
+        </a>
+      </div>
+      <div class="h-6 w-[1px] bg-grid-line hidden sm:block"></div>
+      <div class="flex flex-col items-end min-w-[80px]">
+        <span id="utc-time" class="text-primary-container font-label-sm text-xs">--:--:--</span>
+        <span class="text-[9px] text-on-surface-variant uppercase tracking-widest font-label-sm">Türkiye Saati</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Split View Dashboard Main -->
+  <main class="flex-grow flex flex-col lg:flex-row overflow-hidden">
+    <!-- Left Side: Interactive Map -->
+    <section
+      class="flex-grow h-[45vh] lg:h-auto relative bg-surface-container-lowest overflow-hidden border-b lg:border-b-0 lg:border-r border-grid-line">
+      <div id="map" class="w-full h-full z-10"></div>
+      <!-- Map Decorative Grid & Scan Overlays -->
+      <div class="map-scan-line z-20 pointer-events-none"></div>
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-20 opacity-30 pointer-events-none">
+      </div>
+
+      <!-- Bottom-left map info overlay -->
+      <div
+        class="absolute bottom-4 left-4 bg-surface-elevated/95 backdrop-blur-md border border-grid-line px-3 py-2 rounded z-20 flex items-center gap-4 shadow-xl">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-alert-low animate-pulse"></span>
+          <span class="font-label-sm text-[10px] text-on-surface uppercase tracking-wider font-semibold">Canlı Veri
+            Aktif</span>
+        </div>
+        <div class="h-4 w-px bg-grid-line"></div>
+        <span id="map-region-info"
+          class="font-label-sm text-[10px] text-primary-container truncate max-w-[150px] sm:max-w-xs">Son 7 Gün:
+          Yükleniyor...</span>
+      </div>
+    </section>
+
+    <!-- Right Side: Sidebar Panel -->
+    <aside
+      class="w-full lg:w-[400px] flex-shrink-0 bg-surface flex flex-col h-auto lg:h-full overflow-visible lg:overflow-hidden">
+      <!-- Sidebar Header with Tabs -->
+      <div class="p-4 border-b border-grid-line bg-surface flex-shrink-0">
+        <div class="flex border-b border-grid-line mb-3">
+          <button id="tab-btn-events"
+            class="flex-1 pb-2 border-b-2 border-primary-container text-primary-container font-label-md text-center focus:outline-none transition-all uppercase tracking-wider text-xs font-semibold">
+            Depremler
+          </button>
+          <button id="tab-btn-stats"
+            class="flex-1 pb-2 border-b-2 border-transparent text-on-surface-variant font-label-md text-center focus:outline-none hover:text-on-surface transition-all uppercase tracking-wider text-xs">
+            Analiz & Grafikler
+          </button>
+        </div>
+
+        <!-- Filter chips and region summary -->
+        <div id="events-controls" class="space-y-3 transition-all duration-300">
+          <div class="flex justify-between items-center">
+            <div class="flex flex-col min-w-0">
+              <span id="region-title"
+                class="font-label-sm text-xs text-on-surface font-semibold truncate pr-2 max-w-[180px]">Yükleniyor...</span>
+              <span id="region-badge"
+                class="text-[10px] text-primary-container font-semibold mt-0.5 uppercase tracking-wider">TÜM
+                TÜRKİYE</span>
+            </div>
+            <div id="scope-selector-container"
+              class="flex gap-1 flex-shrink-0 bg-surface-container-low p-0.5 rounded border border-grid-line transition-all duration-300 max-h-12 opacity-100 overflow-hidden">
+              <button id="scope-region"
+                class="px-2 py-1 rounded text-[9px] font-label-sm uppercase font-bold tracking-wider transition-all text-on-surface-variant hover:text-on-surface">Bölge</button>
+              <button id="scope-all"
+                class="px-2 py-1 rounded text-[9px] font-label-sm uppercase font-bold tracking-wider transition-all bg-primary-container text-on-primary-container active-scope">Tüm
+                TR</button>
+            </div>
+          </div>
+
+          <!-- Date Pagination Selector -->
+          <div id="date-selector-container"
+            class="flex items-center justify-between bg-surface-container border border-grid-line p-2 rounded transition-all duration-300">
+            <button id="date-prev"
+              class="flex items-center justify-center w-7 h-7 rounded bg-surface border border-grid-line hover:border-primary-container text-on-surface-variant hover:text-primary-container transition-colors disabled:opacity-30 disabled:pointer-events-none">
+              <span class="material-symbols-outlined text-sm">chevron_left</span>
+            </button>
+            <div class="flex flex-col items-center">
+              <span id="date-display" class="font-label-sm text-[11px] text-on-surface font-bold text-center">Canlı
+                Yayın (Bugün)</span>
+              <span id="date-sub-display"
+                class="text-[9px] text-on-surface-variant uppercase tracking-wider font-semibold">Tarih Arşivi</span>
+            </div>
+            <button id="date-next"
+              class="flex items-center justify-center w-7 h-7 rounded bg-surface border border-grid-line hover:border-primary-container text-on-surface-variant hover:text-primary-container transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              disabled>
+              <span class="material-symbols-outlined text-sm">chevron_right</span>
+            </button>
+          </div>
+
+          <div id="magnitude-filters-container"
+            class="flex gap-2 overflow-x-auto pb-1 custom-scrollbar transition-all duration-300 max-h-12 opacity-100 overflow-hidden">
+            <button id="filter-all"
+              class="px-3 py-1 rounded-full bg-primary-container text-on-primary-container font-label-md text-[11px] border border-primary-container whitespace-nowrap active-filter">Tümü</button>
+            <button id="filter-m2"
+              class="px-3 py-1 rounded-full bg-surface-container border border-grid-line text-on-surface-variant font-label-md text-[11px] hover:border-primary-container whitespace-nowrap">M2.0+</button>
+            <button id="filter-m3"
+              class="px-3 py-1 rounded-full bg-surface-container border border-grid-line text-on-surface-variant font-label-md text-[11px] hover:border-primary-container whitespace-nowrap">M3.0+</button>
+            <button id="filter-m4"
+              class="px-3 py-1 rounded-full bg-surface-container border border-grid-line text-on-surface-variant font-label-md text-[11px] hover:border-primary-container whitespace-nowrap">M4.0+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scrollable content -->
+      <div class="flex-grow overflow-y-auto p-4 custom-scrollbar">
+
+        <!-- Tab 1: Live Event Feed -->
+        <div id="tab-content-events" class="space-y-2.5">
+          <div id="quake-list" class="space-y-2.5">
+            <!-- JS dynamic content -->
+          </div>
+        </div>
+
+        <!-- Tab 2: Analytics & Stats -->
+        <div id="tab-content-stats" class="hidden space-y-6">
+          <!-- 4 Grid Stat Cards -->
+          <div class="grid grid-cols-2 gap-2">
+            <div
+              class="bg-surface-elevated border border-grid-line p-3 rounded hover:border-primary-container/40 transition-colors">
+              <p id="label-max-mag" class="text-[10px] text-on-surface-variant uppercase tracking-wider font-label-sm">
+                En Büyük</p>
+              <p id="max-magnitude" class="text-xl font-bold text-on-surface mt-1">--<span
+                  class="text-primary-container/60 text-xs ml-0.5">M</span></p>
+              <p id="max-mag-place" class="text-[9px] text-on-surface-variant mt-0.5 truncate">—</p>
+            </div>
+            <div
+              class="bg-surface-elevated border border-grid-line p-3 rounded hover:border-primary-container/40 transition-colors">
+              <p id="label-avg-mag" class="text-[10px] text-on-surface-variant uppercase tracking-wider font-label-sm">
+                Ort. Büyüklük</p>
+              <p id="avg-magnitude" class="text-xl font-bold text-on-surface mt-1">--<span
+                  class="text-secondary/60 text-xs ml-0.5">M</span></p>
+            </div>
+            <div
+              class="bg-surface-elevated border border-grid-line p-3 rounded hover:border-primary-container/40 transition-colors">
+              <p id="label-strong-count"
+                class="text-[10px] text-on-surface-variant uppercase tracking-wider font-label-sm">M4+ Sayısı</p>
+              <p id="strong-count" class="text-xl font-bold text-on-surface mt-1">--<span
+                  class="text-alert-high/60 text-xs ml-0.5">adet</span></p>
+            </div>
+            <div
+              class="bg-surface-elevated border border-grid-line p-3 rounded hover:border-primary-container/40 transition-colors">
+              <p id="label-avg-depth"
+                class="text-[10px] text-on-surface-variant uppercase tracking-wider font-label-sm">Ort. Derinlik</p>
+              <p id="avg-depth" class="text-xl font-bold text-on-surface mt-1">--<span
+                  class="text-primary-fixed/60 text-xs ml-0.5">km</span></p>
+            </div>
+          </div>
+
+          <!-- Sismograf Grafiği -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <h4 id="label-chart-title"
+                class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider">Son 30 Deprem
+                Sismografı</h4>
+              <span class="w-1.5 h-1.5 rounded-full bg-primary-container glow-pulse"></span>
+            </div>
+            <div
+              class="bg-surface-elevated border border-grid-line p-4 rounded h-36 relative overflow-hidden flex items-end">
+              <svg id="quake-chart" class="w-full h-full" viewBox="0 0 400 120" preserveAspectRatio="none"></svg>
+              <div id="chart-tooltip"
+                class="absolute top-2 glass-card rounded px-1.5 py-0.5 flex flex-col gap-0.5 border border-primary-container/30 text-[9px] font-label-sm hidden"
+                style="transform: translateX(-50%); z-index: 100;"></div>
+            </div>
+            <div id="chart-labels" class="flex justify-between font-label-sm text-[9px] text-on-surface-variant px-1">
+            </div>
+          </div>
+
+          <!-- 7 Günlük Bar Grafiği -->
+          <div class="space-y-2">
+            <h4 id="label-daily-title"
+              class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider">Günlük Dağılım (Son 7
+              Gün)</h4>
+            <div id="daily-quakes"
+              class="bg-surface-elevated border border-grid-line p-4 rounded flex items-end justify-between gap-1.5 h-32">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+  </main>
+
+  <!-- Footer -->
+  <footer
+    class="hidden lg:flex h-10 bg-surface-container-low border-t border-grid-line items-center justify-between px-6 z-[80] text-[10px] font-label-sm text-on-surface-variant flex-shrink-0">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-alert-low animate-pulse"></span>
+        <span class="text-[9px] font-semibold text-alert-low tracking-wider uppercase">Takip Aktif</span>
+      </div>
+      <div class="h-3 w-[1px] bg-grid-line"></div>
+      <span id="footer-detected-loc" class="truncate max-w-[150px] sm:max-w-xs">Bölge: Tespit ediliyor...</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="https://github.com/omerc4n/whisper-hava-durumu" target="_blank" rel="noopener noreferrer"
+        class="hover:text-white transition-colors uppercase tracking-wider text-[9px] font-semibold">GitHub</a>
+      <span>•</span>
+      <a href="https://api.orhanaydogdu.com.tr" target="_blank" rel="noopener noreferrer"
+        class="hover:text-white transition-colors uppercase tracking-wider text-[9px] font-semibold">Kandilli API</a>
+      <div class="h-3 w-[1px] bg-grid-line hidden sm:block"></div>
+      <span id="footer-stats-summary" class="hidden sm:inline">Yükleniyor...</span>
+    </div>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script type="module" src="/src/earthquake.js"></script>
+</body>
+
+</html>
