@@ -1,3 +1,7 @@
+import trCitiesData from './tr-cities-utf8.json';
+import turkeyFaults from './turkey-faults-full.json';
+import worldFaults from './world-faults.json';
+
 // Canlı Deprem Verileri API Kaynakları
 const KANDILLI_API = 'https://api.orhanaydogdu.com.tr/deprem/kandilli/live?limit=100';
 const RADIUS_KM = 500; // Seçilen konumdan kaç km yarıçap
@@ -111,6 +115,127 @@ let allSourceQuakes = []; // Sunucudan çekilen ham deprem listesi
 let allQuakes = [];       // Seçili merkeze göre filtrelenmiş depremler
 let map = null;
 let markersLayer = null;
+let boundaryLayer = null;
+let faultLayer = null;
+let faultWorldLayer = null;    // Dünya tektonik plaka sınırları arka plan
+let boundaryVisible = false;
+let faultVisible = false;
+let currentMapLayer = 'dark';
+let activeTileLayer = null;
+
+// Alarm için deprem takibi (her zaman aktif)
+let seenEarthquakeIds = new Set();
+let isFirstLoad = true;
+let autoRefreshTimer = null;
+
+// Harita tile katmanı ayarları
+const TILE_LAYERS = {
+  dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    options: {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }
+  },
+  satellite: {
+    // Esri World Imagery — yüksek çözünürlüklü uydu görüntüsü
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    options: {
+      attribution: 'Tiles &copy; Esri &mdash; Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP and GIS Users',
+      maxZoom: 19
+    }
+  },
+  // Esri referans katmanı — uydu üstüne şehir/ülke etiketleri ekler (hibrit görünüm)
+  satelliteLabels: {
+    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    options: {
+      attribution: '',
+      maxZoom: 19,
+      opacity: 0.9
+    }
+  }
+};
+
+let labelsLayer = null; // Uydu modunda şehir etiketleri katmanı
+
+// GeoJSON'daki il adı → Bizim PROVINCES dizisindeki isime normalizasyon
+const GEO_NAME_ALIASES = {
+  'Afyon': 'Afyonkarahisar',
+  'İçel': 'Mersin',
+  'K.Maraş': 'Kahramanmaraş',
+  'Hatay': 'Hatay',
+};
+
+function normalizeGeoName(name) {
+  return GEO_NAME_ALIASES[name] || name;
+}
+
+// GeoJSON özellik adı → bölge eşleşmesi
+function buildProvinceRegionMap() {
+  const map = {};
+  for (const p of PROVINCES) {
+    map[p.name] = p.region;
+  }
+  return map;
+}
+
+const PROVINCE_REGION_MAP = buildProvinceRegionMap();
+
+/* ──────────────── Harita Sınır Çizimi ──────────────── */
+
+function drawMapBoundary(scope, selectedRegion) {
+  if (!map) return;
+
+  // Önceki sınır katmanını her zaman kaldır
+  if (boundaryLayer) {
+    map.removeLayer(boundaryLayer);
+    boundaryLayer = null;
+  }
+
+  // Sınırlar kapalıysa çizme
+  if (!boundaryVisible) return;
+
+  if (scope === 'all') {
+    // Tüm Türkiye sınırlarını çiz
+    boundaryLayer = L.geoJSON(trCitiesData, {
+      className: 'turkey-boundary',
+      style: {
+        color: '#ffd700',
+        weight: 2,
+        opacity: 0.85,
+        fillColor: '#ffd700',
+        fillOpacity: 0.04,
+      }
+    });
+    boundaryLayer.addTo(map);
+    boundaryLayer.bringToBack();
+  } else if (scope === 'region' && selectedRegion) {
+    // Sadece seçilen bölgedeki illeri filtrele ve çiz
+    const regionFeatures = {
+      type: 'FeatureCollection',
+      features: trCitiesData.features.filter(f => {
+        const normalizedName = normalizeGeoName(f.properties.name);
+        return PROVINCE_REGION_MAP[normalizedName] === selectedRegion;
+      })
+    };
+
+    if (regionFeatures.features.length > 0) {
+      boundaryLayer = L.geoJSON(regionFeatures, {
+        className: 'region-boundary',
+        style: {
+          color: '#FF4D00',
+          weight: 2.5,
+          opacity: 0.9,
+          fillColor: '#FF4D00',
+          fillOpacity: 0.07,
+        }
+      });
+      boundaryLayer.addTo(map);
+      boundaryLayer.bringToBack();
+    }
+  }
+}
 
 /* ──────────────── Yardımcılar ──────────────── */
 
@@ -264,15 +389,13 @@ function initMap(lat, lon) {
   // Zoom kontrolünü sağ üste ekle
   L.control.zoom({ position: 'topright' }).addTo(map);
 
-  // CartoDB Dark Matter tile katmanını ekle
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 20
-  }).addTo(map);
+  // Başlangıç tile katmanını ekle (karanlık harita)
+  const cfg = TILE_LAYERS[currentMapLayer];
+  activeTileLayer = L.tileLayer(cfg.url, cfg.options).addTo(map);
 
   // İşaretçiler katmanını ekle
   markersLayer = L.layerGroup().addTo(map);
+  // NOT: Sınır katmanı burada çizilmiyor — kullanıcı toggle butonuyla açar
 }
 
 function updateMapMarkers(features, centerLat, centerLon, centerName) {
@@ -329,16 +452,25 @@ function updateMapMarkers(features, centerLat, centerLon, centerName) {
     }
 
     // Büyüklüğe göre işaretçi boyutunu ölçeklendir
-    const size = Math.max(14, Math.min(36, 12 + mag * 4.5));
+    // Uydu modunda daha büyük ve belirgin markerlar
+    const isSatellite = currentMapLayer === 'satellite';
+    const baseSize   = isSatellite ? 20 : 14;
+    const maxSize    = isSatellite ? 48 : 36;
+    const sizeMult   = isSatellite ? 6  : 4.5;
+    const size = Math.max(baseSize, Math.min(maxSize, 12 + mag * sizeMult));
     const hasPulse = mag >= 3.5;
     const isLatest = f.earthquake_id === latestQuakeId;
     const latestClass = isLatest ? 'latest-quake' : '';
 
-    // Özel HTML divIcon oluştur (data-mag eklendi)
+    // Uydu modunda: beyaz halka + güçlü glow için ekstra stil
+    const innerBorder = isSatellite ? `border: 2.5px solid white; box-shadow: 0 0 0 2px ${color}, 0 0 16px ${color}, 0 0 32px ${color};` : '';
+    const haloExtra   = isSatellite ? `box-shadow: 0 0 10px 3px ${color};` : '';
+
+    // Özel HTML divIcon oluştur
     const markerHtml = `
       <div style="color: ${color}; width: ${size}px; height: ${size}px;" class="custom-marker ${latestClass}" id="marker-icon-${id}" data-mag="${mag.toFixed(1)}">
-        <div class="marker-halo" style="width: 100%; height: 100%;"></div>
-        <div class="marker-inner" style="width: ${size * 0.35}px; height: ${size * 0.35}px;"></div>
+        <div class="marker-halo" style="width: 100%; height: 100%; ${haloExtra}"></div>
+        <div class="marker-inner" style="width: ${size * 0.38}px; height: ${size * 0.38}px; ${innerBorder}"></div>
         ${hasPulse ? `<div class="marker-pulse" style="color: ${color};"></div>` : ''}
       </div>
     `;
@@ -651,6 +783,9 @@ async function fetchEarthquakes(lat, lon, name, countryCode = 'TR') {
 
       dataLoaded = true;
 
+      // Alarm kontrolü: yeni M4+ deprem var mı?
+      checkAndAlertNewQuakes(allSourceQuakes);
+
       // Analizi ve işaretçileri güncelle
       recenterAnalysis(lat, lon, name, true);
     } catch (err) {
@@ -718,6 +853,10 @@ async function fetchUSGS(lat, lon, name) {
     });
 
     dataLoaded = true;
+
+    // Alarm kontrolü
+    checkAndAlertNewQuakes(allSourceQuakes);
+
     recenterAnalysis(lat, lon, name, true);
   } catch (err) {
     console.error('USGS fetch error:', err);
@@ -777,6 +916,9 @@ function recenterAnalysis(lat, lon, title, updateMarkers = false) {
   }
   $('region-title').textContent = title;
 
+  // Harita sınır katmanını güncelle
+  drawMapBoundary(currentScope, selectedRegion);
+
   // Bölge rozetini güncelle
   const badge = $('region-badge');
   if (badge) {
@@ -819,6 +961,360 @@ function setScope(scope) {
   const name = localStorage.getItem('sonSehir') || 'Ankara, Türkiye';
   
   recenterAnalysis(lat, lon, name, true);
+
+  // Scope değişince sınırı güncelle
+  const centerProv2 = getRegionForCoords(lat, lon);
+  const selectedReg2 = centerProv2 ? centerProv2.region : null;
+  drawMapBoundary(scope, selectedReg2);
+}
+
+/* ──────────────── Fay Hatları ──────────────── */
+
+function faultStyle(feature) {
+  const hazard = feature.properties.hazard;
+  if (hazard === 'very_high') {
+    return { color: '#FF3D00', weight: 2.5, opacity: 0.95, dashArray: null };
+  } else if (hazard === 'high') {
+    return { color: '#FF8C42', weight: 2, opacity: 0.85, dashArray: '6 4' };
+  }
+  return { color: '#FFB347', weight: 1.5, opacity: 0.75, dashArray: '4 6' };
+}
+
+function drawFaultLines() {
+  if (!map) return;
+
+  // Her iki katmanı temizle
+  if (faultWorldLayer) { map.removeLayer(faultWorldLayer); faultWorldLayer = null; }
+  if (faultLayer) { map.removeLayer(faultLayer); faultLayer = null; }
+
+  if (!faultVisible || currentMapLayer !== 'satellite') return;
+
+  // --- 1. Arka plan: Dünya tektonik plaka sınırları (tooltip yok, ince, soluk) ---
+  faultWorldLayer = L.geoJSON(worldFaults, {
+    style: {
+      color: '#FF6B35',
+      weight: 0.8,
+      opacity: 0.35,
+      dashArray: '3 5'
+    }
+  }).addTo(map);
+
+  // --- 2. Ön plan: Türkiye fay hatları (tooltip ile, kalhın, parlak) ---
+  faultLayer = L.geoJSON(turkeyFaults, {
+    style: (feature) => {
+      // GEM slip_type alanına göre renk
+      const slip = (feature.properties.slip_type || '').toLowerCase();
+      if (slip.includes('reverse') || slip.includes('thrust')) {
+        return { color: '#FF9500', weight: 2, opacity: 0.9, dashArray: '5 3' };
+      } else if (slip.includes('normal')) {
+        return { color: '#FFD700', weight: 1.8, opacity: 0.85, dashArray: '6 4' };
+      }
+      // Strike-slip veya bilinmiyor → kırmızı
+      return { color: '#FF3D00', weight: 2.2, opacity: 0.95 };
+    },
+    onEachFeature: (feature, layer) => {
+      const p = feature.properties;
+      const name = p.name || p.fault_name || p.catalog_id || 'Bilinmeyen Fay';
+      const slip = p.slip_type || '';
+      const dip  = p.dip_dir   || '';
+      layer.bindTooltip(
+        `<div style="font-size:11px;line-height:1.5;">
+           <b style="color:#FF6B35;">${name}</b><br>
+           ${slip ? `<span style="color:#aaa">${slip}</span>` : ''}
+           ${dip  ? `<span style="color:#aaa"> &bull; ${dip}</span>` : ''}
+         </div>`,
+        { sticky: true, className: 'fault-tooltip' }
+      );
+    }
+  }).addTo(map);
+}
+
+function updateFaultBtnUI() {
+  const iconOff = $('fault-icon-off');
+  const iconOn  = $('fault-icon-on');
+  const dot     = $('fault-active-dot');
+  const btn     = $('fault-toggle-btn');
+  if (!btn) return;
+
+  if (faultVisible) {
+    iconOff.classList.add('hidden');
+    iconOn.classList.remove('hidden');
+    dot.classList.remove('hidden');
+    btn.classList.add('border-[#FF6B35]', 'text-[#FF6B35]');
+    btn.classList.remove('border-grid-line', 'text-on-surface-variant');
+  } else {
+    iconOff.classList.remove('hidden');
+    iconOn.classList.add('hidden');
+    dot.classList.add('hidden');
+    btn.classList.remove('border-[#FF6B35]', 'text-[#FF6B35]');
+    btn.classList.add('border-grid-line', 'text-on-surface-variant');
+  }
+}
+
+function toggleFaultLines() {
+  faultVisible = !faultVisible;
+  updateFaultBtnUI();
+  drawFaultLines();
+}
+
+/* ──────────────── Ses & Bildirim Alarmı ──────────────── */
+
+function playSeismicAlert(mag) {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    // M4+ → 2 bip, M5+ → 3 bip, M6+ → 5 bip (daha düşük frekans)
+    const beepCount = mag >= 6.0 ? 5 : mag >= 5.0 ? 3 : 2;
+    const baseFreq  = mag >= 6.0 ? 520 : mag >= 5.0 ? 660 : 880;
+
+    for (let i = 0; i < beepCount; i++) {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      const t = ctx.currentTime + i * 0.38;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(baseFreq, t);
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.65, t + 0.22);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.5, t + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+      osc.start(t);
+      osc.stop(t + 0.30);
+    }
+  } catch (e) {
+    console.warn('Ses alarmı çalınamadı:', e);
+  }
+}
+
+function sendEarthquakeAlert(quake) {
+  const mag   = quake.mag.toFixed(1);
+  const place = quake.title || 'Bilinmeyen Konum';
+  const time  = quake.timeMs
+    ? new Date(quake.timeMs).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    : '--:--';
+
+  // Tarayıcı bildirimi
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      const n = new Notification(`⚠️ M${mag} Deprem Tespit Edildi!`, {
+        body: `📍 ${place}\n🕑 ${time}`,
+        icon: '/favicon-quake.svg',
+        tag: quake.earthquake_id,
+        requireInteraction: quake.mag >= 5.5
+      });
+      n.onclick = () => { window.focus(); n.close(); };
+    } catch (e) { /* noop */ }
+  }
+
+  // Ekran uyarısı
+  showError(`⚠️ Yeni M${mag} Deprem: ${place} (${time})`);
+}
+
+function checkAndAlertNewQuakes(quakes) {
+  // Alarm her zaman aktif — kullanıcı buton gerekmez
+  const newAlerts = quakes.filter(
+    q => q.mag >= 4.0 && !seenEarthquakeIds.has(q.earthquake_id)
+  );
+
+  if (!isFirstLoad && newAlerts.length > 0) {
+    const maxMag = Math.max(...newAlerts.map(q => q.mag));
+    playSeismicAlert(maxMag);
+    newAlerts.forEach(q => sendEarthquakeAlert(q));
+  }
+
+  quakes.forEach(q => seenEarthquakeIds.add(q.earthquake_id));
+  isFirstLoad = false;
+}
+
+function updateAlarmBtnUI() {
+  const iconOff = $('alarm-icon-off');
+  const iconOn  = $('alarm-icon-on');
+  const dot     = $('alarm-active-dot');
+  const btn     = $('alarm-toggle-btn');
+  if (!btn) return;
+
+  if (alarmEnabled) {
+    iconOff.classList.add('hidden');
+    iconOn.classList.remove('hidden');
+    dot.classList.remove('hidden');
+    btn.classList.add('border-yellow-400', 'text-yellow-400');
+    btn.classList.remove('border-grid-line', 'text-on-surface-variant');
+  } else {
+    iconOff.classList.remove('hidden');
+    iconOn.classList.add('hidden');
+    dot.classList.add('hidden');
+    btn.classList.remove('border-yellow-400', 'text-yellow-400');
+    btn.classList.add('border-grid-line', 'text-on-surface-variant');
+  }
+}
+
+async function toggleAlarm() {
+  // Alarm butonu kaldırıldı — bu fonksiyon artık kullanılmıyor
+  // Otomatik yenileme init() içinde başlatılıyor
+}
+
+/* ──────────────── Otomatik Yenileme ──────────────── */
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  autoRefreshTimer = setInterval(() => {
+    // Sadece canlı veri modunda yenile
+    if (selectedDateOffset !== 0) return;
+    const lat     = parseFloat(localStorage.getItem('sonEnlem')  || 39.9334);
+    const lon     = parseFloat(localStorage.getItem('sonBoylam') || 32.8597);
+    const name    = localStorage.getItem('sonSehir')  || 'Ankara, Türkiye';
+    const country = localStorage.getItem('sonUlke')   || 'TR';
+    fetchEarthquakes(lat, lon, name, country);
+  }, 3 * 60 * 1000); // 3 dakika
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+}
+
+/* ──────────────── Harita Katmanı Değiştirici ──────────────── */
+
+function updateLayerBtnUI() {
+  const iconDark      = $('layer-icon-dark');
+  const iconSatellite = $('layer-icon-satellite');
+  const dot           = $('layer-active-dot');
+  const label         = $('layer-btn-label');
+  const btn           = $('layer-toggle-btn');
+  const boundaryBtn   = $('boundary-toggle-btn');
+
+  if (!btn) return;
+
+  if (currentMapLayer === 'satellite') {
+    iconDark.classList.add('hidden');
+    iconSatellite.classList.remove('hidden');
+    dot.classList.remove('hidden');
+    label.textContent = 'Uydu';
+    btn.classList.add('border-primary-container', 'text-primary-container');
+    btn.classList.remove('border-grid-line', 'text-on-surface-variant');
+
+    // Sınır butonu uydu modunda devre dışı
+    if (boundaryBtn) {
+      boundaryBtn.disabled = true;
+      boundaryBtn.classList.add('opacity-30', 'cursor-not-allowed');
+      boundaryBtn.classList.remove('hover:border-primary-container', 'hover:text-primary-container');
+      boundaryBtn.title = 'Uydu görünümünde sınırlar kullanılamaz';
+    }
+  } else {
+    iconDark.classList.remove('hidden');
+    iconSatellite.classList.add('hidden');
+    dot.classList.add('hidden');
+    label.textContent = 'Harita';
+    btn.classList.remove('border-primary-container', 'text-primary-container');
+    btn.classList.add('border-grid-line', 'text-on-surface-variant');
+
+    // Sınır butonu karanlık modda tekrar aktif
+    if (boundaryBtn) {
+      boundaryBtn.disabled = false;
+      boundaryBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+      boundaryBtn.classList.add('hover:border-primary-container', 'hover:text-primary-container');
+      boundaryBtn.title = 'Sınırları Göster / Gizle';
+    }
+  }
+}
+
+function switchMapLayer() {
+  if (!map || !activeTileLayer) return;
+
+  // Yeni katman belirle
+  currentMapLayer = currentMapLayer === 'dark' ? 'satellite' : 'dark';
+
+  // Eski tile katmanını kaldır
+  map.removeLayer(activeTileLayer);
+
+  // Varsa eski etiket katmanını da kaldır
+  if (labelsLayer) {
+    map.removeLayer(labelsLayer);
+    labelsLayer = null;
+  }
+
+  // Yeni tile katmanını ekle
+  const cfg = TILE_LAYERS[currentMapLayer];
+  activeTileLayer = L.tileLayer(cfg.url, cfg.options).addTo(map);
+  activeTileLayer.bringToBack();
+
+  // Uydu moduna geçişte hibrit için etiket katmanını da ekle
+  if (currentMapLayer === 'satellite') {
+    const lblCfg = TILE_LAYERS.satelliteLabels;
+    labelsLayer = L.tileLayer(lblCfg.url, lblCfg.options).addTo(map);
+    labelsLayer.setZIndex(2);
+
+    // Sınır katmanını gizle, fay butonunu göster
+    if (boundaryLayer) { map.removeLayer(boundaryLayer); boundaryLayer = null; }
+    const boundaryBtn = $('boundary-toggle-btn');
+    if (boundaryBtn) boundaryBtn.classList.add('hidden');
+    const faultBtn = $('fault-toggle-btn');
+    if (faultBtn) faultBtn.classList.remove('hidden');
+
+  } else {
+    // Karanlık moda dönüşte: fay hatlarını gizle, fay butonunu sakla
+    if (faultLayer) { map.removeLayer(faultLayer); faultLayer = null; }
+    const faultBtn = $('fault-toggle-btn');
+    if (faultBtn) faultBtn.classList.add('hidden');
+    const boundaryBtn = $('boundary-toggle-btn');
+    if (boundaryBtn) boundaryBtn.classList.remove('hidden');
+
+    // Karanlık moda dönüşte sınır durumunu geri yükle
+    const lat = parseFloat(localStorage.getItem('sonEnlem') || 39.9334);
+    const lon = parseFloat(localStorage.getItem('sonBoylam') || 32.8597);
+    const centerProv = getRegionForCoords(lat, lon);
+    const selectedRegion = centerProv ? centerProv.region : null;
+    drawMapBoundary(currentScope, selectedRegion);
+  }
+
+  // Marker'ları yeniden çiz
+  updateFilteredView(true);
+  updateLayerBtnUI();
+}
+
+/* ──────────────── Sınır Toggle ──────────────── */
+
+function updateBoundaryBtnUI() {
+  const iconOff = $('boundary-icon-off');
+  const iconOn = $('boundary-icon-on');
+  const dot = $('boundary-active-dot');
+  const btn = $('boundary-toggle-btn');
+
+  if (!btn) return;
+
+  if (boundaryVisible) {
+    // Aktif durum
+    iconOff.classList.add('hidden');
+    iconOn.classList.remove('hidden');
+    dot.classList.remove('hidden');
+    btn.classList.remove('border-grid-line', 'text-on-surface-variant');
+    btn.classList.add('border-primary-container', 'text-primary-container', 'bg-surface-elevated');
+  } else {
+    // Pasif durum
+    iconOff.classList.remove('hidden');
+    iconOn.classList.add('hidden');
+    dot.classList.add('hidden');
+    btn.classList.add('border-grid-line', 'text-on-surface-variant');
+    btn.classList.remove('border-primary-container', 'text-primary-container');
+    btn.classList.add('bg-surface-elevated/90');
+  }
+}
+
+function toggleBoundary() {
+  boundaryVisible = !boundaryVisible;
+  updateBoundaryBtnUI();
+
+  const lat = parseFloat(localStorage.getItem('sonEnlem') || 39.9334);
+  const lon = parseFloat(localStorage.getItem('sonBoylam') || 32.8597);
+  const centerProv = getRegionForCoords(lat, lon);
+  const selectedRegion = centerProv ? centerProv.region : null;
+
+  drawMapBoundary(currentScope, selectedRegion);
 }
 
 function updateFilteredView(updateMarkers = false) {
@@ -1414,6 +1910,30 @@ function init() {
     tabBtnEvents.addEventListener('click', () => activateTab('events'));
     tabBtnStats.addEventListener('click', () => activateTab('stats'));
   }
+
+  // Harita katmanı switcher butonu
+  const layerBtn = $('layer-toggle-btn');
+  if (layerBtn) {
+    layerBtn.addEventListener('click', () => switchMapLayer());
+    updateLayerBtnUI();
+  }
+
+  // Sınır toggle butonu
+  const boundaryBtn = $('boundary-toggle-btn');
+  if (boundaryBtn) {
+    boundaryBtn.addEventListener('click', () => toggleBoundary());
+    updateBoundaryBtnUI();
+  }
+
+  // Fay hatları toggle butonu (uydu modunda görünür)
+  const faultBtn = $('fault-toggle-btn');
+  if (faultBtn) {
+    faultBtn.addEventListener('click', () => toggleFaultLines());
+    updateFaultBtnUI();
+  }
+
+  // M4+ alarm ve otomatik yenileme — buton yok, her zaman aktif
+  startAutoRefresh();
 
   // Saat güncelleyici (İstanbul - TSİ)
   setInterval(() => {
