@@ -69,13 +69,16 @@
     }
   </script>
   <style>
-    /* Hide default cursor globally for custom cursor follower */
-    *, html, body {
-      cursor: none;
-    }
-    
-    input[type="text"], input[type="search"], textarea, input[type="text"] *, input[type="search"] * {
-      cursor: text !important;
+    /* Hide default cursor globally for custom cursor follower — sadece masaüstü fare cihazlarda */
+    @media (hover: hover) and (pointer: fine) {
+      *, html, body {
+        cursor: none;
+      }
+      
+      input[type="text"], input[type="search"], textarea,
+      input[type="text"] *, input[type="search"] * {
+        cursor: text !important;
+      }
     }
 
     html, body {

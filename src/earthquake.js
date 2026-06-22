@@ -1064,9 +1064,13 @@ function playSeismicAlert(mag) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const ctx = new AC();
+
+    // Büyüklüğe göre bip sayısı ve frekans
+    // Herhangi bir deprem → 1 bip (hafif)
     // M4+ → 2 bip, M5+ → 3 bip, M6+ → 5 bip (daha düşük frekans)
-    const beepCount = mag >= 6.0 ? 5 : mag >= 5.0 ? 3 : 2;
-    const baseFreq  = mag >= 6.0 ? 520 : mag >= 5.0 ? 660 : 880;
+    const beepCount = mag >= 6.0 ? 5 : mag >= 5.0 ? 3 : mag >= 4.0 ? 2 : 1;
+    const baseFreq  = mag >= 6.0 ? 520 : mag >= 5.0 ? 660 : mag >= 4.0 ? 880 : 1100;
+    const volume    = mag >= 4.0 ? 0.5 : 0.25; // Küçük depremler daha sessiz
 
     for (let i = 0; i < beepCount; i++) {
       const osc  = ctx.createOscillator();
@@ -1079,7 +1083,7 @@ function playSeismicAlert(mag) {
       osc.frequency.setValueAtTime(baseFreq, t);
       osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.65, t + 0.22);
       gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.5, t + 0.03);
+      gain.gain.linearRampToValueAtTime(volume, t + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
       osc.start(t);
       osc.stop(t + 0.30);
@@ -1089,6 +1093,146 @@ function playSeismicAlert(mag) {
   }
 }
 
+/* ──────────────── Canlı Bildirim Toast ──────────────── */
+
+let toastQueue = [];
+let toastVisible = false;
+
+function showQuakeToast(quake) {
+  toastQueue.push(quake);
+  if (!toastVisible) processToastQueue();
+}
+
+function processToastQueue() {
+  if (!toastQueue.length) { toastVisible = false; return; }
+  toastVisible = true;
+  const quake = toastQueue.shift();
+  _renderToast(quake);
+}
+
+function _renderToast(quake) {
+  const mag   = quake.mag.toFixed(1);
+  const place = quake.title || 'Bilinmeyen Konum';
+  const time  = quake.timeMs
+    ? new Date(quake.timeMs).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    : '--:--';
+  const m = quake.mag ?? 0;
+
+  // Büyüklüğe göre renk
+  let accentColor = '#4ADE80';
+  let accentBg    = 'rgba(74,222,128,0.08)';
+  let label       = 'Hafif';
+  let icon        = 'vibration';
+  if (m >= 5.5) {
+    accentColor = '#FF0000'; accentBg = 'rgba(255,0,0,0.12)'; label = 'Kritik!'; icon = 'emergency_heat';
+  } else if (m >= 4.0) {
+    accentColor = '#FF4D00'; accentBg = 'rgba(255,77,0,0.1)'; label = 'Güçlü'; icon = 'crisis_alert';
+  } else if (m >= 2.5) {
+    accentColor = '#FBBC05'; accentBg = 'rgba(251,188,5,0.08)'; label = 'Orta'; icon = 'warning';
+  }
+
+  // Mevcut tostu kaldır
+  const existingToast = document.getElementById('quake-live-toast');
+  if (existingToast) existingToast.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'quake-live-toast';
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 99990;
+    min-width: 300px;
+    max-width: 360px;
+    background: rgba(20, 20, 20, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid ${accentColor}40;
+    border-left: 3px solid ${accentColor};
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+    padding: 14px 16px;
+    cursor: pointer;
+    transform: translateX(-120%);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+    opacity: 0;
+    font-family: 'Inter', sans-serif;
+  `;
+
+  toast.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:12px;">
+      <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:${accentBg};border:1.5px solid ${accentColor}40;display:flex;align-items:center;justify-content:center;">
+        <span class="material-symbols-outlined" style="color:${accentColor};font-size:20px;font-variation-settings:'FILL' 1;">${icon}</span>
+      </div>
+      <div style="flex-grow:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+          <span style="color:${accentColor};font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">${label}</span>
+          <span style="color:rgba(255,255,255,0.2);font-size:10px;">•</span>
+          <span style="color:rgba(255,255,255,0.4);font-size:10px;font-family:'JetBrains Mono',monospace;">${time}</span>
+        </div>
+        <div style="color:rgba(229,226,225,0.95);font-size:13px;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🇹🇷 Türkiye'de Deprem Oldu!</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:${accentColor};font-size:20px;font-weight:800;line-height:1;">M${mag}</span>
+          <span style="color:rgba(229,226,225,0.55);font-size:11px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${place}</span>
+        </div>
+        <div style="margin-top:6px;color:rgba(229,226,225,0.3);font-size:9px;text-transform:uppercase;letter-spacing:0.08em;">Bilgi İçin Tıklayın</div>
+      </div>
+      <button id="quake-toast-close" style="flex-shrink:0;color:rgba(229,226,225,0.3);padding:2px;line-height:1;border:none;background:none;cursor:pointer;font-size:16px;" aria-label="Kapat">✕</button>
+    </div>
+    <div id="quake-toast-progress" style="position:absolute;bottom:0;left:0;height:2px;background:${accentColor};border-radius:0 0 0 6px;width:100%;transition:width linear;opacity:0.6;"></div>
+  `;
+
+  document.body.appendChild(toast);
+
+  // Tıklama → deprem sekmesine odaklan
+  toast.addEventListener('click', (e) => {
+    if (e.target.id === 'quake-toast-close') return;
+    activateTab('events');
+    toast.remove();
+    toastVisible = false;
+    processToastQueue();
+  });
+
+  const closeBtn = document.getElementById('quake-toast-close');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _hideToast(toast);
+    });
+  }
+
+  // Göster
+  requestAnimationFrame(() => {
+    toast.style.transform = 'translateX(0)';
+    toast.style.opacity = '1';
+  });
+
+  // İlerleme çubuğu animasyonu (5 saniye)
+  const duration = 5000;
+  const bar = document.getElementById('quake-toast-progress');
+  if (bar) {
+    bar.style.transition = `width ${duration}ms linear`;
+    requestAnimationFrame(() => { bar.style.width = '0%'; });
+  }
+
+  // 5 saniye sonra otomatik gizle
+  setTimeout(() => { _hideToast(toast); }, duration);
+}
+
+function _hideToast(toast) {
+  if (!toast || !document.body.contains(toast)) {
+    toastVisible = false;
+    processToastQueue();
+    return;
+  }
+  toast.style.transform = 'translateX(-120%)';
+  toast.style.opacity = '0';
+  setTimeout(() => {
+    if (document.body.contains(toast)) toast.remove();
+    toastVisible = false;
+    processToastQueue();
+  }, 400);
+}
+
 function sendEarthquakeAlert(quake) {
   const mag   = quake.mag.toFixed(1);
   const place = quake.title || 'Bilinmeyen Konum';
@@ -1096,8 +1240,8 @@ function sendEarthquakeAlert(quake) {
     ? new Date(quake.timeMs).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
     : '--:--';
 
-  // Tarayıcı bildirimi
-  if ('Notification' in window && Notification.permission === 'granted') {
+  // Tarayıcı bildirimi (M4+)
+  if (quake.mag >= 4.0 && 'Notification' in window && Notification.permission === 'granted') {
     try {
       const n = new Notification(`⚠️ M${mag} Deprem Tespit Edildi!`, {
         body: `📍 ${place}\n🕑 ${time}`,
@@ -1109,19 +1253,21 @@ function sendEarthquakeAlert(quake) {
     } catch (e) { /* noop */ }
   }
 
-  // Ekran uyarısı
-  showError(`⚠️ Yeni M${mag} Deprem: ${place} (${time})`);
+  // Sol alt köşe modern toast bildirimi
+  showQuakeToast(quake);
 }
 
 function checkAndAlertNewQuakes(quakes) {
-  // Alarm her zaman aktif — kullanıcı buton gerekmez
+  // Tüm yeni depremler için bildirim gönder (sadece M4+ değil)
   const newAlerts = quakes.filter(
-    q => q.mag >= 4.0 && !seenEarthquakeIds.has(q.earthquake_id)
+    q => !seenEarthquakeIds.has(q.earthquake_id)
   );
 
   if (!isFirstLoad && newAlerts.length > 0) {
+    // En büyük depremin sesini çal
     const maxMag = Math.max(...newAlerts.map(q => q.mag));
     playSeismicAlert(maxMag);
+    // Her yeni deprem için toast bildirim göster
     newAlerts.forEach(q => sendEarthquakeAlert(q));
   }
 
@@ -1168,7 +1314,7 @@ function startAutoRefresh() {
     const name    = localStorage.getItem('sonSehir')  || 'Ankara, Türkiye';
     const country = localStorage.getItem('sonUlke')   || 'TR';
     fetchEarthquakes(lat, lon, name, country);
-  }, 3 * 60 * 1000); // 3 dakika
+  }, 30 * 1000); // 30 saniye
 }
 
 function stopAutoRefresh() {
@@ -1200,6 +1346,10 @@ function _onSatMouseLeave() {
 }
 
 function enableSatCursor() {
+  // Dokunmatik cihazlarda (telefon/tablet) uydu imlecini etkinleştirme
+  const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  if (isTouch) return;
+
   const mapEl = document.getElementById('map');
   if (!mapEl) return;
 
