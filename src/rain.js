@@ -243,49 +243,69 @@ async function locateByIP() {
   setLoading(true);
   let lat, lon, name, countryCode;
 
+  // 1. freeipapi.com (HTTPS, free, reliable)
   try {
-    const ipwho = await fetch('https://ipwho.is/?lang=tr');
-    const ipwhoData = await ipwho.json();
-    if (ipwhoData.success) {
-      lat = Number(ipwhoData.latitude);
-      lon = Number(ipwhoData.longitude);
-      name = ipwhoData.city || ipwhoData.region || ipwhoData.country || 'Konumunuz';
-      countryCode = ipwhoData.country_code;
+    const freeip = await fetch('https://freeipapi.com/api/json');
+    if (freeip.ok) {
+      const data = await freeip.json();
+      if (data.latitude && data.longitude) {
+        lat = Number(data.latitude);
+        lon = Number(data.longitude);
+        name = data.cityName || data.regionName || data.countryName || 'Konumunuz';
+        countryCode = data.countryCode;
+      }
     }
   } catch (e) {
-    console.warn('ipwho.is failed:', e);
+    console.warn('freeipapi failed:', e);
   }
 
-  if (!lat || !lon) {
-    try {
-      const freeip = await fetch('https://freeipapi.com/api/json');
-      const freeipData = await freeip.json();
-      if (freeipData.latitude && freeipData.longitude) {
-        lat = Number(freeipData.latitude);
-        lon = Number(freeipData.longitude);
-        name = freeipData.cityName || freeipData.regionName || freeipData.countryName || 'Konumunuz';
-        countryCode = freeipData.countryCode;
-      }
-    } catch (e) {
-      console.warn('freeipapi.com failed:', e);
-    }
-  }
-
+  // 2. ipapi.co (HTTPS, free, rate-limited)
   if (!lat || !lon) {
     try {
       const ipapi = await fetch('https://ipapi.co/json/');
       if (ipapi.ok) {
-        const ipapiData = await ipapi.json();
-        lat = Number(ipapiData.latitude);
-        lon = Number(ipapiData.longitude);
-        name = ipapiData.city || ipapiData.region || ipapiData.country_name || 'Konumunuz';
-        countryCode = ipapiData.country_code;
+        const data = await ipapi.json();
+        if (data.latitude && data.longitude) {
+          lat = Number(data.latitude);
+          lon = Number(data.longitude);
+          name = data.city || data.region || data.country_name || 'Konumunuz';
+          countryCode = data.country_code;
+        }
       }
     } catch (e) {
       console.warn('ipapi.co failed:', e);
     }
   }
 
+  // 3. db-ip.com city resolution + geocoding (HTTPS, free, very high limits)
+  if (!lat || !lon) {
+    try {
+      const dbip = await fetch('https://api.db-ip.com/v2/free/self');
+      if (dbip.ok) {
+        const data = await dbip.json();
+        if (data.city) {
+          name = data.city;
+          countryCode = data.countryCode || 'TR';
+          // Resolve coordinates using Open-Meteo Geocoding
+          const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=tr&format=json`;
+          const geoRes = await fetch(geoUrl);
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            if (geoData.results && geoData.results.length > 0) {
+              const res = geoData.results[0];
+              lat = res.latitude;
+              lon = res.longitude;
+              name = res.admin1 ? `${res.name}, ${res.admin1}` : res.name;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('db-ip failed:', e);
+    }
+  }
+
+  // Fallback to default
   if (!lat || !lon) {
     console.warn('All geolocation APIs failed. Using fallback location (Istanbul).');
     lat = 41.0082;
@@ -370,8 +390,11 @@ if (currentYearElement) {
   currentYearElement.textContent = bugun.toLocaleDateString('tr-TR');
 }
 
-// Modern Animated Cursor Follower (Nokta ve onu takip eden halka)
+// Modern Animated Cursor Follower (Nokta ve onu takip eden halka) - Sadece masaüstü
 (function() {
+  const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (!isDesktop) return;
+
   const dot = document.createElement('div');
   dot.className = 'custom-cursor-dot';
   const ring = document.createElement('div');
