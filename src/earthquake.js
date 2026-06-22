@@ -1178,6 +1178,58 @@ function stopAutoRefresh() {
   }
 }
 
+/* ──────────────── Uydu Modu Özel İmleç ──────────────── */
+
+const _satCursorEl = () => document.getElementById('sat-cursor');
+
+function _onSatMouseMove(e) {
+  const el = _satCursorEl();
+  if (!el) return;
+  el.style.left = e.clientX + 'px';
+  el.style.top  = e.clientY + 'px';
+}
+
+function _onSatMouseEnter() {
+  const el = _satCursorEl();
+  if (el) el.classList.remove('hidden');
+}
+
+function _onSatMouseLeave() {
+  const el = _satCursorEl();
+  if (el) el.classList.add('hidden');
+}
+
+function enableSatCursor() {
+  const mapEl = document.getElementById('map');
+  if (!mapEl) return;
+
+  // Leaflet ve harita kapsayıcısının kendi imleçini gizle
+  mapEl.style.cursor = 'none';
+  const leaflet = mapEl.querySelector('.leaflet-container');
+  if (leaflet) leaflet.style.cursor = 'none';
+
+  mapEl.addEventListener('mousemove',  _onSatMouseMove);
+  mapEl.addEventListener('mouseenter', _onSatMouseEnter);
+  mapEl.addEventListener('mouseleave', _onSatMouseLeave);
+}
+
+function disableSatCursor() {
+  const mapEl = document.getElementById('map');
+  const el    = _satCursorEl();
+  if (!mapEl) return;
+
+  // Normal cursor'a dön
+  mapEl.style.cursor = '';
+  const leaflet = mapEl.querySelector('.leaflet-container');
+  if (leaflet) leaflet.style.cursor = '';
+
+  if (el) el.classList.add('hidden');
+
+  mapEl.removeEventListener('mousemove',  _onSatMouseMove);
+  mapEl.removeEventListener('mouseenter', _onSatMouseEnter);
+  mapEl.removeEventListener('mouseleave', _onSatMouseLeave);
+}
+
 /* ──────────────── Harita Katmanı Değiştirici ──────────────── */
 
 function updateLayerBtnUI() {
@@ -1256,9 +1308,13 @@ function switchMapLayer() {
     const faultBtn = $('fault-toggle-btn');
     if (faultBtn) faultBtn.classList.remove('hidden');
 
+    // Uydu özel imleçi aktif et
+    enableSatCursor();
+
   } else {
     // Karanlık moda dönüşte: fay hatlarını gizle, fay butonunu sakla
-    if (faultLayer) { map.removeLayer(faultLayer); faultLayer = null; }
+    if (faultLayer)      { map.removeLayer(faultLayer);      faultLayer = null; }
+    if (faultWorldLayer) { map.removeLayer(faultWorldLayer); faultWorldLayer = null; }
     const faultBtn = $('fault-toggle-btn');
     if (faultBtn) faultBtn.classList.add('hidden');
     const boundaryBtn = $('boundary-toggle-btn');
@@ -1270,6 +1326,9 @@ function switchMapLayer() {
     const centerProv = getRegionForCoords(lat, lon);
     const selectedRegion = centerProv ? centerProv.region : null;
     drawMapBoundary(currentScope, selectedRegion);
+
+    // Özel imleçi kapat
+    disableSatCursor();
   }
 
   // Marker'ları yeniden çiz

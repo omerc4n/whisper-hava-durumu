@@ -530,6 +530,63 @@
       0%, 100% { stroke-opacity: 0.75; filter: drop-shadow(0 0 4px rgba(255, 77, 0, 0.35)); }
       50% { stroke-opacity: 1; filter: drop-shadow(0 0 10px rgba(255, 77, 0, 0.7)); }
     }
+
+    /* ── Uydu Modu Özel İmleç ── */
+    @keyframes sat-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    @keyframes sat-spin-rev {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(-360deg); }
+    }
+    @keyframes sat-dot-pulse {
+      0%, 100% { opacity: 0.85; transform: scale(1); }
+      50%       { opacity: 1;    transform: scale(1.5); box-shadow: 0 0 14px 4px rgba(255,215,0,0.9); }
+    }
+    #sat-cursor {
+      position: fixed;
+      z-index: 99999;
+      pointer-events: none;
+      width: 0; height: 0;
+      transition: opacity 0.15s ease;
+    }
+    #sat-cursor.hidden { opacity: 0; }
+    #sat-cursor-ring1 {
+      position: absolute;
+      width: 44px; height: 44px;
+      top: -22px; left: -22px;
+      border: 1px dashed rgba(255,215,0,0.55);
+      border-radius: 50%;
+      animation: sat-spin 10s linear infinite;
+    }
+    #sat-cursor-ring2 {
+      position: absolute;
+      width: 26px; height: 26px;
+      top: -13px; left: -13px;
+      border: 1.5px solid rgba(255,215,0,0.88);
+      border-radius: 50%;
+      animation: sat-spin-rev 6s linear infinite;
+    }
+    #sat-cursor-dot {
+      position: absolute;
+      width: 5px; height: 5px;
+      top: -2.5px; left: -2.5px;
+      background: #FFD700;
+      border-radius: 50%;
+      box-shadow: 0 0 8px 3px rgba(255,215,0,0.7);
+      animation: sat-dot-pulse 1.8s ease-in-out infinite;
+    }
+    .sat-cross {
+      position: absolute;
+      background: rgba(255,215,0,0.55);
+    }
+    .sat-cross-h { width: 14px; height: 1px; top: -0.5px; }
+    .sat-cross-v { width: 1px; height: 14px; left: -0.5px; }
+    .sat-cross-top    { top: -30px; left: -0.5px; width: 1px; height: 12px; }
+    .sat-cross-bottom { top:  18px; left: -0.5px; width: 1px; height: 12px; }
+    .sat-cross-left   { top: -0.5px; left: -30px; width: 12px; height: 1px; }
+    .sat-cross-right  { top: -0.5px; left:  18px; width: 12px; height: 1px; }
   </style>
 </head>
 
@@ -608,6 +665,18 @@
       <div class="map-scan-line z-20 pointer-events-none"></div>
       <div
         class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-20 opacity-30 pointer-events-none">
+      </div>
+
+      <!-- Uydu Modu Özel İmleç -->
+      <div id="sat-cursor" class="hidden">
+        <div id="sat-cursor-ring1"></div>
+        <div id="sat-cursor-ring2"></div>
+        <div id="sat-cursor-dot"></div>
+        <!-- Crosshair çizgileri -->
+        <div class="sat-cross sat-cross-top"></div>
+        <div class="sat-cross sat-cross-bottom"></div>
+        <div class="sat-cross sat-cross-left"></div>
+        <div class="sat-cross sat-cross-right"></div>
       </div>
 
       <!-- Top-left: Harita Kontrol Butonları -->
