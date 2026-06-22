@@ -137,6 +137,16 @@
       border-radius: 2px;
     }
 
+    /* Hide browser default search cancel button */
+    input[type="search"]::-webkit-search-cancel-button,
+    input[type="search"]::-webkit-search-decoration,
+    input[type="search"]::-webkit-search-results-button,
+    input[type="search"]::-webkit-search-results-decoration {
+      -webkit-appearance: none;
+      appearance: none;
+      display: none;
+    }
+
     .glow-pulse {
       animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
@@ -198,6 +208,24 @@
       color: #4d4732 !important;
     }
 
+    /* Normal harita gezinme imleci (Radar hedefleri) */
+    .leaflet-container, .leaflet-grab {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23ffd700' stroke-width='1.5' stroke-dasharray='4 2' opacity='0.8'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23ffd700'/%3E%3Cline x1='16' y1='2' x2='16' y2='10' stroke='%23ffd700' stroke-width='1' opacity='0.6'/%3E%3Cline x1='16' y1='22' x2='16' y2='30' stroke='%23ffd700' stroke-width='1' opacity='0.6'/%3E%3Cline x1='2' y1='16' x2='10' y2='16' stroke='%23ffd700' stroke-width='1' opacity='0.6'/%3E%3Cline x1='22' y1='16' x2='30' y2='16' stroke='%23ffd700' stroke-width='1' opacity='0.6'/%3E%3C/svg%3E") 16 16, crosshair !important;
+    }
+
+    /* Haritaya basılı tutunca/sürüklerken (Kilitlenmiş hedef simgesi) */
+    .leaflet-container:active, 
+    .leaflet-grab:active, 
+    .leaflet-dragging .leaflet-grab, 
+    .leaflet-dragging .leaflet-container {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%23ffd700' stroke-width='2' opacity='0.9'/%3E%3Ccircle cx='16' cy='16' r='3.5' fill='%23ffd700'/%3E%3Cline x1='16' y1='4' x2='16' y2='10' stroke='%23ffd700' stroke-width='1.5' opacity='0.8'/%3E%3Cline x1='16' y1='22' x2='16' y2='28' stroke='%23ffd700' stroke-width='1.5' opacity='0.8'/%3E%3Cline x1='4' y1='16' x2='10' y2='16' stroke='%23ffd700' stroke-width='1.5' opacity='0.8'/%3E%3Cline x1='22' y1='16' x2='28' y2='16' stroke='%23ffd700' stroke-width='1.5' opacity='0.8'/%3E%3C/svg%3E") 16 16, move !important;
+    }
+
+    /* Deprem noktalarının üzerine gelindiğinde (Turuncu/Kırmızı sismik tehlike imleci) */
+    .leaflet-marker-icon, .custom-marker {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%23ff4d00' stroke-width='1.5' stroke-dasharray='3 3'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23ff4d00'/%3E%3Cline x1='16' y1='1' x2='16' y2='5' stroke='%23ff4d00' stroke-width='1.5'/%3E%3Cline x1='16' y1='27' x2='16' y2='31' stroke='%23ff4d00' stroke-width='1.5'/%3E%3Cline x1='1' y1='16' x2='5' y2='16' stroke='%23ff4d00' stroke-width='1.5'/%3E%3Cline x1='27' y1='16' x2='31' y2='16' stroke='%23ff4d00' stroke-width='1.5'/%3E%3C/svg%3E") 16 16, pointer !important;
+    }
+
     .leaflet-container {
       background: #0e0e0e !important;
       outline: 0;
@@ -228,6 +256,59 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
+      overflow: visible;
+    }
+
+    /* Son deprem için özel dalga yayan sınıf */
+    .custom-marker.latest-quake .marker-inner {
+      animation: latest-inner-pulse 1.5s infinite alternate;
+    }
+
+    @keyframes latest-inner-pulse {
+      0% {
+        transform: scale(1.0);
+        box-shadow: 0 0 10px currentColor;
+      }
+      100% {
+        transform: scale(1.4);
+        box-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
+      }
+    }
+
+    /* Çoklu dalga yayan halkalar */
+    .custom-marker.latest-quake::before,
+    .custom-marker.latest-quake::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      width: 100%;
+      height: 100%;
+      animation: latest-wave-anim 3s infinite cubic-bezier(0.1, 0.8, 0.3, 1);
+      opacity: 0;
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    .custom-marker.latest-quake::after {
+      animation-delay: 1.5s;
+    }
+
+    @keyframes latest-wave-anim {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+        border-width: 3px;
+      }
+      50% {
+        opacity: 0.5;
+      }
+      100% {
+        transform: scale(6);
+        opacity: 0;
+        border-width: 0.5px;
+      }
     }
 
     .marker-inner {
@@ -287,65 +368,67 @@
       opacity: 0.4;
     }
 
-    /* Hover and Active Marker Magnitude Badge */
-    .custom-marker:hover::after,
-    .custom-marker.active-marker::after {
-      content: attr(data-mag);
-      position: absolute;
-      top: -18px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #1E1E1E;
-      color: #ffd700;
-      border: 1px solid #ffd700;
-      padding: 1px 4px;
-      font-size: 9px;
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: bold;
-      border-radius: 3px;
-      white-space: nowrap;
-      box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
-      z-index: 1000;
-      pointer-events: none;
-    }
 
 
-    /* User Location Marker */
-    .user-location-marker {
+
+    /* Custom Animated User Pin */
+    .user-location-marker-container {
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
-    .user-location-inner {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: #0ea5e9;
-      border: 2.5px solid #fff;
-      box-shadow: 0 0 12px #0ea5e9;
+    .custom-user-pin {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      justify-content: center;
     }
 
-    .user-location-pulse {
+    .pin-bob {
       position: absolute;
-      width: 320%;
-      height: 320%;
-      border-radius: 50%;
-      background: #0ea5e9;
-      opacity: 0.3;
-      animation: user-pulse-anim 2.5s infinite ease-out;
-      pointer-events: none;
+      bottom: 8px;
+      animation: pin-bob-anim 1.8s infinite ease-in-out;
+      color: #ffd700;
+      filter: drop-shadow(0 3px 6px rgba(255, 215, 0, 0.7));
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    @keyframes user-pulse-anim {
-      0% {
-        transform: scale(0.3);
-        opacity: 0.7;
-      }
+    .pin-bob span {
+      font-size: 36px !important;
+      font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
+    }
 
-      100% {
-        transform: scale(1);
-        opacity: 0;
+    .pin-ripple {
+      position: absolute;
+      bottom: 4px;
+      width: 18px;
+      height: 6px;
+      background: radial-gradient(ellipse at center, rgba(255, 215, 0, 0.75) 0%, rgba(255, 215, 0, 0) 70%);
+      border-radius: 50%;
+      animation: pin-ripple-anim 1.8s infinite ease-in-out;
+    }
+
+    @keyframes pin-bob-anim {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    @keyframes pin-ripple-anim {
+      0%, 100% {
+        transform: scale(0.7);
+        opacity: 0.9;
+      }
+      50% {
+        transform: scale(1.4);
+        opacity: 0.15;
       }
     }
 
@@ -390,6 +473,29 @@
         overflow: visible;
       }
     }
+
+    /* Leaflet Custom Tooltip */
+    .custom-tooltip {
+      background: #1e1e1e !important;
+      color: #ffd700 !important;
+      border: 1px solid #262626 !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 10px !important;
+      font-weight: bold !important;
+      border-radius: 4px !important;
+      padding: 2px 6px !important;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
+      opacity: 1 !important;
+    }
+
+    .latest-time-pulse {
+      animation: smooth-pulse 3s infinite ease-in-out;
+    }
+    
+    @keyframes smooth-pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.95; }
+    }
   </style>
 </head>
 
@@ -421,12 +527,15 @@
     </div>
 
     <!-- Autocomplete Search Wrapper -->
-    <div class="relative w-full sm:w-80 md:w-96 group">
+    <div class="relative w-full sm:w-80 md:w-96 group" id="search-wrapper">
       <span
         class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
       <input id="search-input"
-        class="w-full bg-surface-container border border-grid-line py-2 pl-10 pr-4 text-sm text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all placeholder:text-on-surface-variant font-label-sm rounded"
-        placeholder="Bölge veya şehir ara (örn. İzmir, İstanbul)..." type="search" autocomplete="off" />
+        class="w-full bg-surface-container border border-grid-line py-2 pl-10 pr-10 text-sm text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all placeholder:text-on-surface-variant font-label-sm rounded"
+        placeholder="Bölge veya şehir ara" type="search" autocomplete="off" />
+      <button id="search-clear-btn" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary-container transition-colors flex items-center justify-center">
+        <span class="material-symbols-outlined text-base">close</span>
+      </button>
       <div id="search-results"
         class="hidden absolute left-0 right-0 top-full mt-1 z-[100] glass-card rounded border border-grid-line max-h-64 overflow-y-auto shadow-2xl">
       </div>
@@ -564,6 +673,18 @@
 
         <!-- Tab 2: Analytics & Stats -->
         <div id="tab-content-stats" class="hidden space-y-6">
+          <!-- Modern Bilgi Bannerı -->
+          <div class="glass-card border border-primary-container/20 rounded p-3 flex items-center gap-3 relative overflow-hidden group/info-banner">
+            <div class="absolute -right-12 -top-12 w-24 h-24 bg-primary-container/5 rounded-full blur-xl group-hover/info-banner:scale-125 transition-transform duration-500"></div>
+            <span class="material-symbols-outlined text-primary-container text-xl animate-pulse shrink-0">info</span>
+            <div class="flex flex-col min-w-0">
+              <span class="text-[10px] text-primary-container font-bold tracking-wider uppercase font-label-sm">Veri Kapsamı Bilgilendirmesi</span>
+              <p class="text-[9.5px] text-on-surface-variant/90 font-label-sm mt-0.5 leading-relaxed">
+                Analiz ve istatistik verileri son <strong class="text-primary-container">7 gün</strong> içerisindeki deprem aktivitelerini kapsamaktadır.
+              </p>
+            </div>
+          </div>
+
           <!-- 4 Grid Stat Cards -->
           <div class="grid grid-cols-2 gap-2">
             <div
@@ -573,6 +694,7 @@
               <p id="max-magnitude" class="text-xl font-bold text-on-surface mt-1">--<span
                   class="text-primary-container/60 text-xs ml-0.5">M</span></p>
               <p id="max-mag-place" class="text-[9px] text-on-surface-variant mt-0.5 truncate">—</p>
+              <p id="max-mag-time" class="text-[8px] text-on-surface-variant/60 mt-0.5 latest-time-pulse truncate">—</p>
             </div>
             <div
               class="bg-surface-elevated border border-grid-line p-3 rounded hover:border-primary-container/40 transition-colors">
@@ -635,11 +757,6 @@
   <footer
     class="hidden lg:flex h-10 bg-surface-container-low border-t border-grid-line items-center justify-between px-6 z-[80] text-[10px] font-label-sm text-on-surface-variant flex-shrink-0">
     <div class="flex items-center gap-4">
-      <div class="flex items-center gap-1.5">
-        <span class="w-1.5 h-1.5 rounded-full bg-alert-low animate-pulse"></span>
-        <span class="text-[9px] font-semibold text-alert-low tracking-wider uppercase">Takip Aktif</span>
-      </div>
-      <div class="h-3 w-[1px] bg-grid-line"></div>
       <span id="footer-detected-loc" class="truncate max-w-[150px] sm:max-w-xs">Bölge: Tespit ediliyor...</span>
     </div>
     <div class="flex items-center gap-4">

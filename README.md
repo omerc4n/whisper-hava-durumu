@@ -1,49 +1,67 @@
-# 🌦️ Whisper Hava Durumu
+# 🌦️ Whisper Hava Durumu & Deprem Takip Sistemi
 
-> Türkiye geneli ücretsiz hava durumu ve yağmur tahmini sitesi. Stitch tasarımından esinlenilmiştir.
+> Türkiye geneli gerçek zamanlı hava durumu, detaylı yağış tahmini ve anlık deprem takip sitesi. Stitch tasarımından ve modern glassmorphic temalardan esinlenilmiştir.
 
-🌐 **Live Demo:** [https://whisper-hava-durumu.vercel.app/](https://whisper-hava-durumu.vercel.app/)
+🌐 **Canlı Site (Vercel):** [https://whisper-hava-durumu.vercel.app/](https://whisper-hava-durumu.vercel.app/)
 
 ---
 
 ## ✨ Özellikler
 
 ### 🌍 Ana Sayfa - Hava Durumu
-- 📍 Otomatik konum algılama (IP tabanlı)
-- 🔍 81 il + tüm ilçelerde gerçek zamanlı arama
-- 🌡️ Anlık sıcaklık, nem, rüzgar, basınç ve görüş bilgileri
-- 📊 24 saatlik sıcaklık grafiği
-- 📈 7 günlük nem tahmini
-- 💾 Son aramanız otomatik kaydedilir (F5 koruması)
+- 📍 **Akıllı Konum Algılama:** IP tabanlı konum tespiti (`ipwho.is` -> `freeipapi` -> `ipapi.co` ardışık yedekli sistemi). Sistem başarısız olursa "İstanbul, Türkiye" varsayılanına güvenli geçiş yapar.
+- 🔍 **Detaylı Arama:** İl ve ilçelerde gerçek zamanlı akıllı arama ve otomatik tamamlama.
+- 🌡️ **Detaylı Hava Durumu:** Anlık sıcaklık, nem, rüzgar hızı/yönü, basınç ve görüş mesafesi bilgileri.
+- 📊 **24 Saatlik Sıcaklık Grafiği:** Görüntülenen konuma ait 24 saatlik sıcaklık sismografı.
+- 📈 **7 Günlük Nem Tahmini:** Haftalık ortalama nem yüzdeleri.
+- 💾 **Sayfalar Arası Durum Senkronizasyonu:** `localStorage` tabanlı senkronizasyon sayesinde Ana Sayfa, Yağmur veya Deprem sayfalarından birinde yaptığınız arama/konum tüm sitede korunur.
 
 ### 🌧️ Yağmur Sayfası - Detaylı Yağış Tahmini
-- 💧 Yağış ihtimali ve miktarı
-- ⏰ Yağışlı saat sayısı
-- 📉 24 saatlik yağmur ihtimali grafiği
-- 🌅 Güneş doğuş/batış saatleri
-- ☀️ UV İndeksi
-- 📅 7 günlük yağış miktarı
+- 💧 **Yağış İhtimali ve Miktarı:** Detaylı saatlik ve günlük yağış yüzdeleri.
+- ⏰ **Yağışlı Saat Sayısı:** Gün içindeki toplam yağış süresi tahmini.
+- 📉 **24 Saatlik Yağmur İhtimali Grafiği:** Saat saat yağış olasılığı dağılımı.
+- 🌅 **Güneş Bilgileri:** Gün doğumu ve gün batımı saatleri.
+- ☀️ **UV İndeksi:** Günlük ultraviyole radyasyon seviyesi.
+- 📅 **7 Günlük Yağış Miktarı:** Haftalık toplam yağış tahmini tablosu.
+- 🖱️ **Modern İmleç Takipçisi (Hava & Yağmur):** Ana sayfa (mavi) ve yağmur (mor) sayfalarında, fare hareketini organik bir gecikmeyle izleyen estetik bir nokta ve halka imleç follower sistemi. İnteraktif elemanların üstüne gelince halka genişler, arama kutularına girildiğinde ise otomatik olarak kaybolarak default yazı imlecine (`text`) dönüşür.
+
+### 🌋 Deprem Sayfası - Gerçek Zamanlı Deprem Takip & Analiz
+- 📡 **Anlık Deprem Akışı:** Kandilli Rasathanesi API'si (ve yedek olarak USGS API) üzerinden Türkiye ve yakın çevresindeki son depremleri canlı listeleme.
+- 🗺️ **İnteraktif Sismik Harita:** 
+  - Son depremler büyüklüklerine göre renklendirilmiş (Yeşil: <2.5, Sarı: 2.5-4.0, Turuncu: 4.0-5.5, Kırmızı: >=5.5) halkalar ile gösterilir.
+  - **En Son Deprem Dalgası:** Haritadaki en son depremin etrafında dışa doğru yayılan konsantrik sismik dalga animasyonları bulunur.
+  - **Premium Konum İğnesi:** Seçilen şehri/merkezi gösteren, havada asılı kalıp yumuşakça süzülen (bobbing) ve altında dairesel dalgalar yayan altın sarısı animasyonlu bir konum iğnesi bulunur.
+  - **İnteraktif Harita İmleçleri:** Harita üzerinde gezerken radar hedefi imleci, haritayı sürüklerken kilitlenmiş hedef imleci, depremlerin üzerine gelindiğinde ise sismik uyarı halkası imleci devreye girer.
+- 📊 **Detaylı İstatistikler & Grafikler:**
+  - Bölgedeki en büyük depremin şiddeti, konumu, gerçekleşme tarihi ve saati.
+  - Ortalama büyüklük, M4.0+ üzeri kritik deprem sayıları ve ortalama derinlik kartları.
+  - **Son 30 Deprem Sismografı:** Son sismik aktivitelerin grafiksel dağılımı.
+  - **Adaptif Saatlik/Günlük Dağılım:** Veri seti 36 saatten daha az bir süreyi kapsıyorsa (örn: bölgesel dar aramalar) 3'er saatlik aralıklarla **Saatlik Dağılım**, 36 saatten fazla ise **Son 7 Günlük Dağılım** bar grafiği otomatik olarak çizilir.
+- 🗺️ **Sınır Dışı Depremler Projeksiyonu:** Sınır dışı/uluslararası bir deprem seçildiğinde, en yakın Türkiye il merkezine olan mesafesi (örn. `SINIR DIŞI (İzmir'e 80 km)`) otomatik hesaplanır ve "Bölgesel Analiz" sekmesinde bu en yakın bölgenin sismik verileri/istatistikleri listelenir.
 
 ---
 
 ## 🛠️ Teknoloji Stack
 
-- **Frontend:** Pure JavaScript (framework yok, minimal bağımlılık)
-- **Styling:** Tailwind CSS + Custom CSS
+- **Frontend:** Pure JavaScript (Framework bağımsız, modern vanilla ES6)
+- **Styling:** Tailwind CSS + Custom Tailwind CSS tokens + Glassmorphism & Keyframe Animations
 - **Icons:** Google Material Symbols
+- **Maps:** Leaflet.js
 - **Builder:** Vite
 - **APIs:**
-  - 🌡️ **Open-Meteo** (Ana hava durumu - ücretsiz, anahtarsız)
-  - 🌧️ **WeatherAPI** (Yağmur tahmini - ücretsiz)
-  - 🗺️ **Open-Meteo Geocoding** (Şehir araması - ücretsiz)
-  - 📍 **ipwho.is** & **ipapi.co** (Konum algılama - ücretsiz)
+  - 🌡️ **Open-Meteo** (Hava durumu ana verisi)
+  - 🌧️ **WeatherAPI** (Yağmur ve güneş verileri)
+  - 🗺️ **Open-Meteo Geocoding** (Şehir/İlçe arama motoru)
+  - 📡 **Kandilli Rasathanesi API** (orhanaydogdu.com.tr yansısı)
+  - 🌍 **USGS Earthquake API** (Uluslararası sismik veriler)
+  - 📍 **ipwho.is**, **freeipapi.com** & **ipapi.co** (Yedekli konum algılama)
 
 ---
 
 ## 🚀 Kurulum & Çalıştırma
 
 ### Gereksinimler
-- Node.js (v14+)
+- Node.js (v18+)
 - npm veya yarn
 
 ### Adımlar
@@ -56,62 +74,27 @@ cd whisper-hava-durumu
 # Bağımlılıkları kur
 npm install
 
-# Development server'ı başlat
+# Geliştirici sunucusunu (Vite) başlat
 npm run dev
 ```
 
-Tarayıcında `http://localhost:5173` adresini aç.
+Tarayıcınızda terminalde belirtilen adresi (varsayılan: `http://localhost:5173` veya port doluysa `http://localhost:5174`) açın.
 
 ---
 
-## 📦 Production Build
+## 📦 Production Build (Dağıtım)
+
+Projeyi derlemek ve statik dosya paketini hazırlamak için:
 
 ```bash
-# Production build
+# Production derlemesi oluştur
 npm run build
 
-# Build'i test et
+# Yerel sunucuda derlemeyi önizle
 npm run preview
 ```
 
-`dist/` klasörü oluşacak. Herhangi bir statik hosting servisine (Vercel, Netlify, GitHub Pages vb.) yükleyebilirsin.
-
----
-
-## 📄 Sayfalar
-
-### `/` - Ana Sayfa (Hava Durumu)
-- Şu anki hava koşulları
-- 24 saatlik sıcaklık tahmini
-- 7 günlük nem oranı
-
-### `/rain.html` - Yağmur Sayfası
-- Detaylı yağmur tahmini
-- 24 saatlik yağmur ihtimali grafiği
-- Güneş bilgileri
-- Saatlik yağış miktarı
-
----
-
-## 🎨 Tasarım
-
-- **Dark Mode:** Göz dostu koyu tema
-- **Responsive:** Mobil, tablet ve desktop uyumlu
-- **Glass Morphism:** Modern glassmorphic kartlar
-- **Smooth Animations:** Yumuşak geçişler ve animasyonlar
-
----
-
-## 📋 API Bilgileri
-
-### Open-Meteo (Ücretsiz)
-- Limit: Sınırsız
-- Dokumentasyon: [open-meteo.com](https://open-meteo.com)
-
-### WeatherAPI (Ücretsiz Tier)
-- Limit: 1 milyon istek/ay
-- API Key gerekli
-- Dokumentasyon: [weatherapi.com](https://www.weatherapi.com)
+Derleme sonrasında oluşan `/dist` klasörünü Vercel, Netlify veya GitHub Pages gibi dilediğiniz bir statik barındırma platformuna doğrudan yükleyebilirsiniz.
 
 ---
 
@@ -119,34 +102,22 @@ npm run preview
 
 Katkılarınız ve önerileriniz memnuniyetle karşılanır!
 
-1. Fork et
-2. Feature branch oluştur (`git checkout -b feature/AmazingFeature`)
-3. Değişiklikleri commit et (`git commit -m 'Add some AmazingFeature'`)
-4. Branch'e push et (`git push origin feature/AmazingFeature`)
-5. Pull Request aç
+1. Projeyi Fork edin
+2. Yeni bir feature branch açın (`git checkout -b feature/AmazingFeature`)
+3. Değişikliklerinizi commit edin (`git commit -m 'feat: Add some AmazingFeature'`)
+4. Branch'inizi push edin (`git push origin feature/AmazingFeature`)
+5. Pull Request açın
 
 ---
 
 ## 📄 Lisans
 
-Bu proje MIT Lisansı altında lisanslanmıştır. Ayrıntılar için [LICENSE](LICENSE) dosyasını gör.
+Bu proje MIT Lisansı altında lisanslanmıştır. Ayrıntılar için [LICENSE](LICENSE) dosyasını inceleyebilirsiniz.
 
 ---
 
 ## 📧 İletişim
 
-- GitHub: [@omerc4n](https://github.com/omerc4n)
-- Site: [Discord](https://discord.com/users/787270008324882433)
-
----
-
-## 🙏 Teşekkürler
-
-- **Open-Meteo** - Ücretsiz hava durumu API
-- **WeatherAPI** - Detaylı hava tahmini API
-- **Tailwind CSS** - Modern CSS framework
-- **Vite** - Hızlı build tool
-
----
-
-**Yapıcı yorumlar ve bug raporları için GitHub Issues'i kullan!** 🐛✨
+- **GitHub:** [@omerc4n](https://github.com/omerc4n)
+- **Discord:** [Discord Profil Linki](https://discord.com/users/787270008324882433)
+- **Canlı Web Sitesi:** [whisper-hava-durumu.vercel.app](https://whisper-hava-durumu.vercel.app/)

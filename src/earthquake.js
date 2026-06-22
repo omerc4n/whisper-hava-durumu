@@ -184,6 +184,20 @@ function getRegionForCoords(lat, lon) {
   return null;
 }
 
+// Sınır dışı depremlerde en yakın Türkiye ilini bulur
+function getAbsoluteClosestProvince(lat, lon) {
+  let closest = null;
+  let minDist = Infinity;
+  for (const p of PROVINCES) {
+    const dist = getDistanceKM(lat, lon, p.lat, p.lon);
+    if (dist < minDist) {
+      minDist = dist;
+      closest = p;
+    }
+  }
+  return { province: closest, distance: minDist };
+}
+
 // Tarih farkını formatlar ve YYYY-MM-DD formatında döner
 function formatOffsetDate(offset) {
   const d = new Date();
@@ -265,12 +279,19 @@ function updateMapMarkers(features, centerLat, centerLon, centerName) {
   if (!markersLayer) return;
   markersLayer.clearLayers();
 
-  // 1. Seçilen konum için mavi renkli parlayan işaretçi ekle
+  // 1. Seçilen konum için altın renkli konum iğnesi ekle
   const userIcon = L.divIcon({
-    className: 'user-location-marker',
-    html: '<div class="user-location-inner"></div><div class="user-location-pulse"></div>',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    className: 'user-location-marker-container',
+    html: `
+      <div class="custom-user-pin">
+        <div class="pin-ripple"></div>
+        <div class="pin-bob">
+          <span class="material-symbols-outlined">location_on</span>
+        </div>
+      </div>
+    `,
+    iconSize: [40, 40],
+    iconAnchor: [20, 38]
   });
 
   L.marker([centerLat, centerLon], { icon: userIcon })
@@ -278,6 +299,15 @@ function updateMapMarkers(features, centerLat, centerLon, centerName) {
     .addTo(markersLayer);
 
   // 2. Filtrelenen ilk 10 deprem işaretçisini ekle
+  let latestQuakeId = null;
+  let maxTime = 0;
+  features.forEach(f => {
+    if (f.timeMs && f.timeMs > maxTime) {
+      maxTime = f.timeMs;
+      latestQuakeId = f.earthquake_id;
+    }
+  });
+
   features.forEach(f => {
     const coords = f.geojson?.coordinates;
     if (!coords || coords.length < 2) return;
@@ -301,10 +331,12 @@ function updateMapMarkers(features, centerLat, centerLon, centerName) {
     // Büyüklüğe göre işaretçi boyutunu ölçeklendir
     const size = Math.max(14, Math.min(36, 12 + mag * 4.5));
     const hasPulse = mag >= 3.5;
+    const isLatest = f.earthquake_id === latestQuakeId;
+    const latestClass = isLatest ? 'latest-quake' : '';
 
     // Özel HTML divIcon oluştur (data-mag eklendi)
     const markerHtml = `
-      <div style="color: ${color}; width: ${size}px; height: ${size}px;" class="custom-marker" id="marker-icon-${id}" data-mag="${mag.toFixed(1)}">
+      <div style="color: ${color}; width: ${size}px; height: ${size}px;" class="custom-marker ${latestClass}" id="marker-icon-${id}" data-mag="${mag.toFixed(1)}">
         <div class="marker-halo" style="width: 100%; height: 100%;"></div>
         <div class="marker-inner" style="width: ${size * 0.35}px; height: ${size * 0.35}px;"></div>
         ${hasPulse ? `<div class="marker-pulse" style="color: ${color};"></div>` : ''}
@@ -349,8 +381,19 @@ function updateMapMarkers(features, centerLat, centerLon, centerName) {
       </div>
     `;
 
-    const marker = L.marker([lat, lon], { icon: icon })
+    const markerOptions = { icon: icon };
+    if (isLatest) {
+      markerOptions.zIndexOffset = 1000;
+    }
+
+    const marker = L.marker([lat, lon], markerOptions)
       .bindPopup(popupContent)
+      .bindTooltip(`${mag.toFixed(1)}`, {
+        permanent: false,
+        direction: 'top',
+        className: 'custom-tooltip',
+        offset: [0, -5]
+      })
       .addTo(markersLayer);
 
     // Marker popup olaylarını dinle (Active class ekle/sil)
@@ -418,9 +461,22 @@ function setupInitialLoadUI(lat, lon, name, countryCode = 'TR') {
   $('region-title').textContent = name;
   const badge = $('region-badge');
   const centerProv = getRegionForCoords(lat, lon);
-  const selectedRegion = centerProv ? centerProv.region : null;
+  const closestInfo = getAbsoluteClosestProvince(lat, lon);
+  const selectedRegion = centerProv ? centerProv.region : (closestInfo.province ? closestInfo.province.region : null);
   if (badge) {
-    badge.textContent = currentScope === 'all' ? 'TÜM TÜRKİYE' : (selectedRegion || 'BÖLGESİZ');
+    if (currentScope === 'all') {
+      badge.textContent = 'TÜM TÜRKİYE';
+    } else {
+      if (centerProv) {
+        badge.textContent = centerProv.region;
+      } else {
+        if (closestInfo.province) {
+          badge.textContent = `SINIR DIŞI (${closestInfo.province.name}'e ${closestInfo.distance.toFixed(0)} km)`;
+        } else {
+          badge.textContent = 'SINIR DIŞI';
+        }
+      }
+    }
   }
   if ($('map-region-info')) {
     $('map-region-info').textContent = `Veri Yüklenmedi`;
@@ -454,26 +510,52 @@ function setupInitialLoadUI(lat, lon, name, countryCode = 'TR') {
 
 async function locateByIP() {
   setLoading(true);
+  let lat, lon, name, countryCode;
+
   try {
     const ipwho = await fetch('https://ipwho.is/?lang=tr');
     const ipwhoData = await ipwho.json();
-
-    let lat, lon, name, countryCode;
     if (ipwhoData.success) {
       lat         = Number(ipwhoData.latitude);
       lon         = Number(ipwhoData.longitude);
       name        = ipwhoData.city || ipwhoData.region || ipwhoData.country || 'Konumunuz';
       countryCode = ipwhoData.country_code;
-    } else {
-      const ipapi = await fetch('https://ipapi.co/json/');
-      if (!ipapi.ok) throw new Error('konum alınamadı');
-      const ipapiData = await ipapi.json();
-      lat         = Number(ipapiData.latitude);
-      lon         = Number(ipapiData.longitude);
-      name        = ipapiData.city || ipapiData.region || ipapiData.country_name || 'Konumunuz';
-      countryCode = ipapiData.country_code;
     }
+  } catch (e) {
+    console.warn('ipwho.is failed:', e);
+  }
 
+  if (!lat || !lon) {
+    try {
+      const freeip = await fetch('https://freeipapi.com/api/json');
+      const freeipData = await freeip.json();
+      if (freeipData.latitude && freeipData.longitude) {
+        lat         = Number(freeipData.latitude);
+        lon         = Number(freeipData.longitude);
+        name        = freeipData.cityName || freeipData.regionName || freeipData.countryName || 'Konumunuz';
+        countryCode = freeipData.countryCode;
+      }
+    } catch (e) {
+      console.warn('freeipapi.com failed:', e);
+    }
+  }
+
+  if (!lat || !lon) {
+    try {
+      const ipapi = await fetch('https://ipapi.co/json/');
+      if (ipapi.ok) {
+        const ipapiData = await ipapi.json();
+        lat         = Number(ipapiData.latitude);
+        lon         = Number(ipapiData.longitude);
+        name = ipapiData.city || ipapiData.region || ipapiData.country_name || 'Konumunuz';
+        countryCode = ipapiData.country_code;
+      }
+    } catch (e) {
+      console.warn('ipapi.co failed:', e);
+    }
+  }
+
+  try {
     if (!lat || !lon) throw new Error('Geçersiz koordinat');
 
     // Yalnızca Türkiye sınırları içindeki konumu kabul et, aksi halde fallback'e git
@@ -482,10 +564,13 @@ async function locateByIP() {
       throw new Error('Türkiye dışı konum tespit edildi');
     }
 
+    const searchInput = $('search-input');
+    if (searchInput) searchInput.value = name;
+
     initMap(lat, lon);
     fetchEarthquakes(lat, lon, name, countryCode || 'TR');
   } catch (err) {
-    console.error('Locate by IP error:', err);
+    console.error('Locate by IP error or outside TR:', err);
     showError("Sadece Türkiye'deki depremleri göstermektedir.");
     
     const randomProv = PROVINCES[Math.floor(Math.random() * PROVINCES.length)];
@@ -507,6 +592,11 @@ async function fetchEarthquakes(lat, lon, name, countryCode = 'TR') {
   localStorage.setItem('sonBoylam', lon);
   localStorage.setItem('sonUlke',   countryCode.toUpperCase());
 
+  const searchInput = $('search-input');
+  if (searchInput) {
+    searchInput.value = name;
+  }
+
   setLoading(true);
   currentMinMag = 0;
   resetFilterBtns();
@@ -527,7 +617,8 @@ async function fetchEarthquakes(lat, lon, name, countryCode = 'TR') {
         const coords = f.geojson?.coordinates;
         const eqLon = coords ? coords[0] : 0;
         const eqLat = coords ? coords[1] : 0;
-        const timeMs = new Date(f.date_time.replace(' ', 'T') + '+03:00').getTime();
+        const dateStrNormalized = f.date_time.replaceAll('.', '-').replace(' ', 'T');
+        const timeMs = new Date(dateStrNormalized + '+03:00').getTime();
         return {
           earthquake_id: f.earthquake_id,
           title: f.title,
@@ -627,7 +718,8 @@ function recenterAnalysis(lat, lon, title, updateMarkers = false) {
 
   // Seçilen koordinatın ait olduğu Türkiye bölgesini bul
   const centerProv = getRegionForCoords(lat, lon);
-  const selectedRegion = centerProv ? centerProv.region : null;
+  const closestInfo = getAbsoluteClosestProvince(lat, lon);
+  const selectedRegion = centerProv ? centerProv.region : (closestInfo.province ? closestInfo.province.region : null);
 
   // Ham depremler listesindeki tüm depremlerin bölgelerini tespit et ve eşleşenleri filtrele
   allQuakes = allSourceQuakes.map(f => {
@@ -647,7 +739,8 @@ function recenterAnalysis(lat, lon, title, updateMarkers = false) {
       if (currentScope === 'region' && selectedRegion) {
         return f.region === selectedRegion;
       }
-      return f.region !== null;
+      // Tüm Türkiye kapsamındayken sınır depremlerini de göster
+      return true;
     }
     // Turkiye disi ise, tum gelen depremleri goster
     return true;
@@ -671,7 +764,16 @@ function recenterAnalysis(lat, lon, title, updateMarkers = false) {
     if (currentScope === 'all') {
       badge.textContent = 'TÜM TÜRKİYE';
     } else {
-      badge.textContent = selectedRegion ? selectedRegion : 'BÖLGESİZ';
+      if (centerProv) {
+        badge.textContent = centerProv.region;
+      } else {
+        // Türkiye dışındaysa en yakın ili bulup göster
+        if (closestInfo.province) {
+          badge.textContent = `SINIR DIŞI (${closestInfo.province.name}'e ${closestInfo.distance.toFixed(0)} km)`;
+        } else {
+          badge.textContent = 'SINIR DIŞI';
+        }
+      }
     }
   }
 }
@@ -710,7 +812,7 @@ function updateFilteredView(updateMarkers = false) {
     ? allQuakes.filter(f => (f.mag ?? 0) >= currentMinMag)
     : allQuakes;
 
-  // 2. Harita için (Her zaman Tüm TR/Tüm kapsam)
+  // 2. Harita için (Tüm yüklenen depremler)
   const allTrQuakes = allSourceQuakes.map(f => {
     const coords = f.geojson?.coordinates;
     const eqLon = coords ? coords[0] : 0;
@@ -719,12 +821,6 @@ function updateFilteredView(updateMarkers = false) {
     const eqProv = getRegionForCoords(eqLat, eqLon);
     f.region = eqProv ? eqProv.region : null;
     return f;
-  }).filter(f => {
-    const isTR = localStorage.getItem('sonUlke') === 'TR';
-    if (isTR) {
-      return f.region !== null;
-    }
-    return true;
   });
 
   const filteredMap = currentMinMag > 0
@@ -842,6 +938,7 @@ function renderStatsAndCharts(features) {
   if (!features.length) {
     $('max-magnitude').innerHTML = `--<span class="text-primary-container/60 text-xs ml-0.5">M</span>`;
     $('max-mag-place').textContent = '—';
+    if ($('max-mag-time')) $('max-mag-time').textContent = '—';
     $('avg-magnitude').innerHTML = `--<span class="text-secondary/60 text-xs ml-0.5">M</span>`;
     $('strong-count').innerHTML  = `0<span class="text-alert-high/60 text-xs ml-0.5">adet</span>`;
     $('avg-depth').innerHTML     = `--<span class="text-primary-fixed/60 text-xs ml-0.5">km</span>`;
@@ -861,6 +958,16 @@ function renderStatsAndCharts(features) {
 
   $('max-magnitude').innerHTML = `${maxMag.toFixed(1)}<span class="text-primary-container/60 text-xs ml-0.5">M</span>`;
   $('max-mag-place').textContent = maxFeat?.title ?? '—';
+  
+  if ($('max-mag-time') && maxFeat && maxFeat.timeMs) {
+    const d = new Date(maxFeat.timeMs);
+    const dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    $('max-mag-time').textContent = `${dateStr} ${timeStr}`;
+  } else if ($('max-mag-time')) {
+    $('max-mag-time').textContent = '—';
+  }
+
   $('avg-magnitude').innerHTML = `${avgMag.toFixed(1)}<span class="text-secondary/60 text-xs ml-0.5">M</span>`;
   $('strong-count').innerHTML  = `${strong}<span class="text-alert-high/60 text-xs ml-0.5">adet</span>`;
   $('avg-depth').innerHTML     = `${avgDepth.toFixed(0)}<span class="text-primary-fixed/60 text-xs ml-0.5">km</span>`;
@@ -950,34 +1057,106 @@ function renderChart(features) {
 }
 
 function renderDailyBars(features) {
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push({ label: d.toLocaleDateString('tr-TR', { weekday: 'short' }), date: d.toDateString(), count: 0 });
-  }
-  features.forEach(f => {
-    const d = new Date(f.timeMs).toDateString();
-    const day = days.find(x => x.date === d);
-    if (day) day.count++;
-  });
-  
-  const maxCount = Math.max(...days.map(d => d.count), 1);
   const container = $('daily-quakes');
   if (!container) return;
 
-  container.innerHTML = days.map(d => {
-    const pct = (d.count / maxCount) * 100;
-    return `
-      <div class="flex flex-col items-center gap-1 flex-1 h-full justify-end">
-        <span class="font-label-sm text-[9px] text-on-surface-variant mb-0.5">${d.count}</span>
-        <div class="w-full flex items-end justify-center" style="height:55px">
-          <div class="w-2 rounded-t transition-all duration-700 glow-pulse"
-               style="height:${pct}%;background:linear-gradient(to top,#ff571a,#ffd700)"></div>
-        </div>
-        <span class="font-label-sm text-[8px] text-on-surface-variant uppercase mt-1 tracking-wider">${d.label}</span>
-      </div>`;
-  }).join('');
+  const times = features.map(f => f.timeMs).filter(t => t != null && !isNaN(t));
+  if (!times.length) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const minTime = Math.min(...times);
+  const maxTime = Math.max(...times);
+  const diffHours = (maxTime - minTime) / (1000 * 60 * 60);
+
+  if (diffHours <= 36) {
+    // 36 saatten az veri varsa: Saatlik Dağılım çiz (3'er saatlik aralıklarla 8 bar)
+    if ($('label-daily-title')) {
+      const scopeText = currentScope === 'region' ? 'Bölge' : 'Türkiye';
+      $('label-daily-title').textContent = `Saatlik Dağılım (${scopeText} - 24 Saat)`;
+    }
+
+    const intervals = [
+      { label: '00-03', min: 0, max: 3, count: 0 },
+      { label: '03-06', min: 3, max: 6, count: 0 },
+      { label: '06-09', min: 6, max: 9, count: 0 },
+      { label: '09-12', min: 9, max: 12, count: 0 },
+      { label: '12-15', min: 12, max: 15, count: 0 },
+      { label: '15-18', min: 15, max: 18, count: 0 },
+      { label: '18-21', min: 18, max: 21, count: 0 },
+      { label: '21-24', min: 21, max: 24, count: 0 }
+    ];
+
+    features.forEach(f => {
+      if (!f.timeMs || isNaN(f.timeMs)) return;
+      const hour = new Date(f.timeMs).getHours();
+      const interval = intervals.find(x => hour >= x.min && hour < x.max);
+      if (interval) interval.count++;
+    });
+
+    const maxCount = Math.max(...intervals.map(i => i.count), 1);
+
+    container.innerHTML = intervals.map(i => {
+      const pct = (i.count / maxCount) * 100;
+      return `
+        <div class="flex flex-col items-center gap-1 flex-1 h-full justify-end">
+          <span class="font-label-sm text-[9px] text-on-surface-variant mb-0.5">${i.count}</span>
+          <div class="w-full flex items-end justify-center" style="height:55px">
+            <div class="w-2 rounded-t transition-all duration-700 glow-pulse"
+                 style="height:${pct}%;background:linear-gradient(to top,#ff571a,#ffd700)"></div>
+          </div>
+          <span class="font-label-sm text-[8px] text-on-surface-variant uppercase mt-1 tracking-wider">${i.label}</span>
+        </div>`;
+    }).join('');
+
+  } else {
+    // 36 saatten fazla veri varsa (örneğin USGS 7 günlük veri): Günlük Dağılım çiz (Son 7 Gün)
+    if ($('label-daily-title')) {
+      const scopeText = currentScope === 'region' ? 'Bölge' : 'Türkiye';
+      $('label-daily-title').textContent = `Günlük Dağılım (${scopeText} - Son 7 Gün)`;
+    }
+
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      days.push({ 
+        label: d.toLocaleDateString('tr-TR', { weekday: 'short' }), 
+        dateStr: `${yyyy}-${mm}-${dd}`, 
+        count: 0 
+      });
+    }
+
+    features.forEach(f => {
+      if (!f.timeMs || isNaN(f.timeMs)) return;
+      const d = new Date(f.timeMs);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const fDateStr = `${yyyy}-${mm}-${dd}`;
+      const day = days.find(x => x.dateStr === fDateStr);
+      if (day) day.count++;
+    });
+
+    const maxCount = Math.max(...days.map(d => d.count), 1);
+
+    container.innerHTML = days.map(d => {
+      const pct = (d.count / maxCount) * 100;
+      return `
+        <div class="flex flex-col items-center gap-1 flex-1 h-full justify-end">
+          <span class="font-label-sm text-[9px] text-on-surface-variant mb-0.5">${d.count}</span>
+          <div class="w-full flex items-end justify-center" style="height:55px">
+            <div class="w-2 rounded-t transition-all duration-700 glow-pulse"
+                 style="height:${pct}%;background:linear-gradient(to top,#ff571a,#ffd700)"></div>
+          </div>
+          <span class="font-label-sm text-[8px] text-on-surface-variant uppercase mt-1 tracking-wider">${d.label}</span>
+        </div>`;
+    }).join('');
+  }
 }
 
 /* ──────────────── Sağ Sidebar Listesi Arayüz Çizimi ──────────────── */
@@ -1118,10 +1297,27 @@ function init() {
 
   const input   = $('search-input');
   const results = $('search-results');
+  const clearBtn = $('search-clear-btn');
   let timer;
+
+  if (clearBtn && input) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      clearBtn.classList.add('hidden');
+      results.classList.add('hidden');
+      input.focus();
+    });
+  }
 
   // Arama girdisi
   input.addEventListener('input', () => {
+    if (clearBtn) {
+      if (input.value.trim().length > 0) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+    }
     clearTimeout(timer);
     const q = input.value.trim();
     if (q.length < 2) { results.classList.add('hidden'); return; }
@@ -1145,10 +1341,12 @@ function init() {
       showError('Yalnızca Türkiye sınırları içindeki konumları arayabilirsiniz.');
       results.classList.add('hidden');
       input.value = '';
+      if (clearBtn) clearBtn.classList.add('hidden');
       return;
     }
 
     input.value = btn.dataset.name;
+    if (clearBtn) clearBtn.classList.remove('hidden');
     results.classList.add('hidden');
     
     const name = btn.dataset.name;
@@ -1223,10 +1421,12 @@ function init() {
       showError("Sadece Türkiye'deki depremleri göstermektedir.");
       const randomProv = PROVINCES[Math.floor(Math.random() * PROVINCES.length)];
       input.value = `${randomProv.name}, Türkiye`;
+      if (clearBtn) clearBtn.classList.remove('hidden');
       initMap(randomProv.lat, randomProv.lon);
       fetchEarthquakes(randomProv.lat, randomProv.lon, `${randomProv.name}, Türkiye`, 'TR');
     } else {
       input.value = kayitliSehir;
+      if (clearBtn) clearBtn.classList.remove('hidden');
       initMap(lat, lon);
       fetchEarthquakes(lat, lon, kayitliSehir, kayitliUlke || 'TR');
     }

@@ -52,6 +52,11 @@ async function fetchWeather(lat, lon, name, countryCode = '') {
     localStorage.removeItem('sonUlke');
   }
 
+  const input = $('search-input');
+  if (input) {
+    input.value = name;
+  }
+
   setLoading(true);
   try {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
@@ -224,32 +229,63 @@ async function searchCities(q) {
 
 async function locateByIP() {
   setLoading(true);
+  let lat, lon, name, countryCode;
+
   try {
     const ipwho = await fetch('https://ipwho.is/?lang=tr');
     const ipwhoData = await ipwho.json();
-
-    let lat, lon, name, countryCode;
     if (ipwhoData.success) {
       lat = Number(ipwhoData.latitude);
       lon = Number(ipwhoData.longitude);
       name = ipwhoData.city || ipwhoData.region || ipwhoData.country || 'Konumunuz';
       countryCode = ipwhoData.country_code;
-    } else {
-      const ipapi = await fetch('https://ipapi.co/json/');
-      if (!ipapi.ok) throw new Error('konum alınamadı');
-      const ipapiData = await ipapi.json();
-      lat = Number(ipapiData.latitude);
-      lon = Number(ipapiData.longitude);
-      name = ipapiData.city || ipapiData.region || ipapiData.country_name || 'Konumunuz';
-      countryCode = ipapiData.country_code;
     }
-
-    if (!lat || !lon) throw new Error('Geçersiz koordinat');
-    fetchWeather(lat, lon, name, countryCode ?? 'TR');
-  } catch {
-    setLoading(false);
-    showError('konum alınamadı. Lütfen tekrar deneyin.');
+  } catch (e) {
+    console.warn('ipwho.is failed:', e);
   }
+
+  if (!lat || !lon) {
+    try {
+      const freeip = await fetch('https://freeipapi.com/api/json');
+      const freeipData = await freeip.json();
+      if (freeipData.latitude && freeipData.longitude) {
+        lat = Number(freeipData.latitude);
+        lon = Number(freeipData.longitude);
+        name = freeipData.cityName || freeipData.regionName || freeipData.countryName || 'Konumunuz';
+        countryCode = freeipData.countryCode;
+      }
+    } catch (e) {
+      console.warn('freeipapi.com failed:', e);
+    }
+  }
+
+  if (!lat || !lon) {
+    try {
+      const ipapi = await fetch('https://ipapi.co/json/');
+      if (ipapi.ok) {
+        const ipapiData = await ipapi.json();
+        lat = Number(ipapiData.latitude);
+        lon = Number(ipapiData.longitude);
+        name = ipapiData.city || ipapiData.region || ipapiData.country_name || 'Konumunuz';
+        countryCode = ipapiData.country_code;
+      }
+    } catch (e) {
+      console.warn('ipapi.co failed:', e);
+    }
+  }
+
+  if (!lat || !lon) {
+    console.warn('All geolocation APIs failed. Using fallback location (Istanbul).');
+    lat = 41.0082;
+    lon = 28.9784;
+    name = 'İstanbul, Türkiye';
+    countryCode = 'TR';
+  }
+
+  const input = $('search-input');
+  if (input) input.value = name;
+
+  fetchWeather(lat, lon, name, countryCode ?? 'TR');
 }
 
 function renderDropdown(results) {
@@ -297,6 +333,7 @@ function init() {
   const kayitliUlke = localStorage.getItem('sonUlke');
 
   if (kayitliSehir && kayitliEnlem && kayitliBoylam) {
+    if (input) input.value = kayitliSehir;
     fetchWeather(
       parseFloat(kayitliEnlem),
       parseFloat(kayitliBoylam),
@@ -320,3 +357,64 @@ if (currentYearElement) {
 // Tarihi Türkçe formatına (gün.ay.yıl) çeviriyoruz
   currentYearElement.textContent = bugun.toLocaleDateString('tr-TR');
 }
+
+// Modern Animated Cursor Follower (Nokta ve onu takip eden halka)
+(function() {
+  const dot = document.createElement('div');
+  dot.className = 'custom-cursor-dot';
+  const ring = document.createElement('div');
+  ring.className = 'custom-cursor-ring';
+  document.body.appendChild(dot);
+  document.body.appendChild(ring);
+
+  let mouseX = -100;
+  let mouseY = -100;
+  let hasMoved = false;
+
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    
+    if (!hasMoved) {
+      dot.style.opacity = '1';
+      ring.style.opacity = '1';
+      hasMoved = true;
+    }
+
+    dot.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0) translate(-50%, -50%)`;
+    ring.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0) translate(-50%, -50%)`;
+  });
+
+  document.addEventListener('mouseleave', () => {
+    dot.style.opacity = '0';
+    ring.style.opacity = '0';
+    hasMoved = false;
+  });
+
+  document.addEventListener('mouseenter', () => {
+    dot.style.opacity = '1';
+    ring.style.opacity = '1';
+  });
+
+  document.addEventListener('mouseover', (e) => {
+    // Input alanları ve textarealarda imleci gizle, default text imlecine izin ver
+    const isInput = e.target.closest('input, textarea, select');
+    if (isInput && (isInput.type === 'text' || isInput.type === 'search' || isInput.tagName === 'TEXTAREA')) {
+      dot.style.opacity = '0';
+      ring.style.opacity = '0';
+    } else {
+      if (hasMoved) {
+        dot.style.opacity = '1';
+        ring.style.opacity = '1';
+      }
+    }
+
+    // Hover durumlarında halkayı büyüt
+    const target = e.target.closest('a, button, [role="button"], select, .cursor-pointer, .temp-dot, .rain-dot');
+    if (target) {
+      ring.classList.add('custom-cursor-hover');
+    } else {
+      ring.classList.remove('custom-cursor-hover');
+    }
+  });
+})();
