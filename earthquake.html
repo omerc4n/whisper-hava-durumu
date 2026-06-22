@@ -209,20 +209,22 @@
     }
 
     /* Normal harita gezinme imleci (Radar hedefleri) */
-    .leaflet-container, .leaflet-grab {
+    .leaflet-container,
+    .leaflet-grab {
       cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23ffd700' stroke-width='1.5' stroke-dasharray='4 2' opacity='0.8'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23ffd700'/%3E%3Cline x1='16' y1='2' x2='16' y2='10' stroke='%23ffd700' stroke-width='1' opacity='0.6'/%3E%3Cline x1='16' y1='22' x2='16' y2='30' stroke='%23ffd700' stroke-width='1' opacity='0.6'/%3E%3Cline x1='2' y1='16' x2='10' y2='16' stroke='%23ffd700' stroke-width='1' opacity='0.6'/%3E%3Cline x1='22' y1='16' x2='30' y2='16' stroke='%23ffd700' stroke-width='1' opacity='0.6'/%3E%3C/svg%3E") 16 16, crosshair !important;
     }
 
     /* Haritaya basılı tutunca/sürüklerken (Kilitlenmiş hedef simgesi) */
-    .leaflet-container:active, 
-    .leaflet-grab:active, 
-    .leaflet-dragging .leaflet-grab, 
+    .leaflet-container:active,
+    .leaflet-grab:active,
+    .leaflet-dragging .leaflet-grab,
     .leaflet-dragging .leaflet-container {
       cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%23ffd700' stroke-width='2' opacity='0.9'/%3E%3Ccircle cx='16' cy='16' r='3.5' fill='%23ffd700'/%3E%3Cline x1='16' y1='4' x2='16' y2='10' stroke='%23ffd700' stroke-width='1.5' opacity='0.8'/%3E%3Cline x1='16' y1='22' x2='16' y2='28' stroke='%23ffd700' stroke-width='1.5' opacity='0.8'/%3E%3Cline x1='4' y1='16' x2='10' y2='16' stroke='%23ffd700' stroke-width='1.5' opacity='0.8'/%3E%3Cline x1='22' y1='16' x2='28' y2='16' stroke='%23ffd700' stroke-width='1.5' opacity='0.8'/%3E%3C/svg%3E") 16 16, move !important;
     }
 
     /* Deprem noktalarının üzerine gelindiğinde (Turuncu/Kırmızı sismik tehlike imleci) */
-    .leaflet-marker-icon, .custom-marker {
+    .leaflet-marker-icon,
+    .custom-marker {
       cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%23ff4d00' stroke-width='1.5' stroke-dasharray='3 3'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23ff4d00'/%3E%3Cline x1='16' y1='1' x2='16' y2='5' stroke='%23ff4d00' stroke-width='1.5'/%3E%3Cline x1='16' y1='27' x2='16' y2='31' stroke='%23ff4d00' stroke-width='1.5'/%3E%3Cline x1='1' y1='16' x2='5' y2='16' stroke='%23ff4d00' stroke-width='1.5'/%3E%3Cline x1='27' y1='16' x2='31' y2='16' stroke='%23ff4d00' stroke-width='1.5'/%3E%3C/svg%3E") 16 16, pointer !important;
     }
 
@@ -270,6 +272,7 @@
         transform: scale(1.0);
         box-shadow: 0 0 10px currentColor;
       }
+
       100% {
         transform: scale(1.4);
         box-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
@@ -301,9 +304,11 @@
         opacity: 1;
         border-width: 3px;
       }
+
       50% {
         opacity: 0.5;
       }
+
       100% {
         transform: scale(6);
         opacity: 0;
@@ -413,19 +418,25 @@
     }
 
     @keyframes pin-bob-anim {
-      0%, 100% {
+
+      0%,
+      100% {
         transform: translateY(0);
       }
+
       50% {
         transform: translateY(-8px);
       }
     }
 
     @keyframes pin-ripple-anim {
-      0%, 100% {
+
+      0%,
+      100% {
         transform: scale(0.7);
         opacity: 0.9;
       }
+
       50% {
         transform: scale(1.4);
         opacity: 0.15;
@@ -491,10 +502,17 @@
     .latest-time-pulse {
       animation: smooth-pulse 3s infinite ease-in-out;
     }
-    
+
     @keyframes smooth-pulse {
-      0%, 100% { opacity: 0.4; }
-      50% { opacity: 0.95; }
+
+      0%,
+      100% {
+        opacity: 0.4;
+      }
+
+      50% {
+        opacity: 0.95;
+      }
     }
 
     /* Turkey boundary layer — Tüm TR */
@@ -522,71 +540,158 @@
     }
 
     @keyframes boundary-glow-tr {
-      0%, 100% { stroke-opacity: 0.7; }
-      50% { stroke-opacity: 1; }
+
+      0%,
+      100% {
+        stroke-opacity: 0.7;
+      }
+
+      50% {
+        stroke-opacity: 1;
+      }
     }
 
     @keyframes boundary-glow-region {
-      0%, 100% { stroke-opacity: 0.75; filter: drop-shadow(0 0 4px rgba(255, 77, 0, 0.35)); }
-      50% { stroke-opacity: 1; filter: drop-shadow(0 0 10px rgba(255, 77, 0, 0.7)); }
+
+      0%,
+      100% {
+        stroke-opacity: 0.75;
+        filter: drop-shadow(0 0 4px rgba(255, 77, 0, 0.35));
+      }
+
+      50% {
+        stroke-opacity: 1;
+        filter: drop-shadow(0 0 10px rgba(255, 77, 0, 0.7));
+      }
     }
 
     /* ── Uydu Modu Özel İmleç ── */
     @keyframes sat-spin {
-      from { transform: rotate(0deg); }
-      to   { transform: rotate(360deg); }
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
     }
+
     @keyframes sat-spin-rev {
-      from { transform: rotate(0deg); }
-      to   { transform: rotate(-360deg); }
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(-360deg);
+      }
     }
+
     @keyframes sat-dot-pulse {
-      0%, 100% { opacity: 0.85; transform: scale(1); }
-      50%       { opacity: 1;    transform: scale(1.5); box-shadow: 0 0 14px 4px rgba(255,215,0,0.9); }
+
+      0%,
+      100% {
+        opacity: 0.85;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.5);
+        box-shadow: 0 0 14px 4px rgba(255, 215, 0, 0.9);
+      }
     }
+
     #sat-cursor {
       position: fixed;
       z-index: 99999;
       pointer-events: none;
-      width: 0; height: 0;
+      width: 0;
+      height: 0;
       transition: opacity 0.15s ease;
     }
-    #sat-cursor.hidden { opacity: 0; }
+
+    #sat-cursor.hidden {
+      opacity: 0;
+    }
+
     #sat-cursor-ring1 {
       position: absolute;
-      width: 44px; height: 44px;
-      top: -22px; left: -22px;
-      border: 1px dashed rgba(255,215,0,0.55);
+      width: 44px;
+      height: 44px;
+      top: -22px;
+      left: -22px;
+      border: 1px dashed rgba(255, 215, 0, 0.55);
       border-radius: 50%;
       animation: sat-spin 10s linear infinite;
     }
+
     #sat-cursor-ring2 {
       position: absolute;
-      width: 26px; height: 26px;
-      top: -13px; left: -13px;
-      border: 1.5px solid rgba(255,215,0,0.88);
+      width: 26px;
+      height: 26px;
+      top: -13px;
+      left: -13px;
+      border: 1.5px solid rgba(255, 215, 0, 0.88);
       border-radius: 50%;
       animation: sat-spin-rev 6s linear infinite;
     }
+
     #sat-cursor-dot {
       position: absolute;
-      width: 5px; height: 5px;
-      top: -2.5px; left: -2.5px;
+      width: 5px;
+      height: 5px;
+      top: -2.5px;
+      left: -2.5px;
       background: #FFD700;
       border-radius: 50%;
-      box-shadow: 0 0 8px 3px rgba(255,215,0,0.7);
+      box-shadow: 0 0 8px 3px rgba(255, 215, 0, 0.7);
       animation: sat-dot-pulse 1.8s ease-in-out infinite;
     }
+
     .sat-cross {
       position: absolute;
-      background: rgba(255,215,0,0.55);
+      background: rgba(255, 215, 0, 0.55);
     }
-    .sat-cross-h { width: 14px; height: 1px; top: -0.5px; }
-    .sat-cross-v { width: 1px; height: 14px; left: -0.5px; }
-    .sat-cross-top    { top: -30px; left: -0.5px; width: 1px; height: 12px; }
-    .sat-cross-bottom { top:  18px; left: -0.5px; width: 1px; height: 12px; }
-    .sat-cross-left   { top: -0.5px; left: -30px; width: 12px; height: 1px; }
-    .sat-cross-right  { top: -0.5px; left:  18px; width: 12px; height: 1px; }
+
+    .sat-cross-h {
+      width: 14px;
+      height: 1px;
+      top: -0.5px;
+    }
+
+    .sat-cross-v {
+      width: 1px;
+      height: 14px;
+      left: -0.5px;
+    }
+
+    .sat-cross-top {
+      top: -30px;
+      left: -0.5px;
+      width: 1px;
+      height: 12px;
+    }
+
+    .sat-cross-bottom {
+      top: 18px;
+      left: -0.5px;
+      width: 1px;
+      height: 12px;
+    }
+
+    .sat-cross-left {
+      top: -0.5px;
+      left: -30px;
+      width: 12px;
+      height: 1px;
+    }
+
+    .sat-cross-right {
+      top: -0.5px;
+      left: 18px;
+      width: 12px;
+      height: 1px;
+    }
   </style>
 </head>
 
@@ -624,7 +729,8 @@
       <input id="search-input"
         class="w-full bg-surface-container border border-grid-line py-2 pl-10 pr-10 text-sm text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all placeholder:text-on-surface-variant font-label-sm rounded"
         placeholder="Bölge veya şehir ara" type="search" autocomplete="off" />
-      <button id="search-clear-btn" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary-container transition-colors flex items-center justify-center">
+      <button id="search-clear-btn"
+        class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary-container transition-colors flex items-center justify-center">
         <span class="material-symbols-outlined text-base">close</span>
       </button>
       <div id="search-results"
@@ -683,36 +789,41 @@
       <div class="absolute top-4 left-4 z-30 flex items-center gap-2">
 
         <!-- Harita Katmanı Switcher -->
-        <button
-          id="layer-toggle-btn"
+        <button id="layer-toggle-btn"
           class="flex items-center gap-2 px-3 py-2 rounded bg-surface-elevated/90 backdrop-blur-md border border-grid-line hover:border-primary-container text-on-surface-variant hover:text-primary-container transition-all duration-300 shadow-xl font-label-sm text-[10px] uppercase tracking-wider font-semibold"
           title="Harita Görüntüsünü Değiştir">
-          <span id="layer-icon-dark" class="material-symbols-outlined text-base" style="font-variation-settings: 'FILL' 0;">dark_mode</span>
-          <span id="layer-icon-satellite" class="material-symbols-outlined text-base text-primary-container hidden" style="font-variation-settings: 'FILL' 1;">satellite_alt</span>
+          <span id="layer-icon-dark" class="material-symbols-outlined text-base"
+            style="font-variation-settings: 'FILL' 0;">dark_mode</span>
+          <span id="layer-icon-satellite" class="material-symbols-outlined text-base text-primary-container hidden"
+            style="font-variation-settings: 'FILL' 1;">satellite_alt</span>
           <span id="layer-btn-label">Harita</span>
           <span id="layer-active-dot" class="hidden w-1.5 h-1.5 rounded-full bg-primary-container glow-pulse"></span>
         </button>
 
         <!-- Sınır Toggle (karanlık modda görünür) -->
-        <button
-          id="boundary-toggle-btn"
+        <button id="boundary-toggle-btn"
           class="flex items-center gap-2 px-3 py-2 rounded bg-surface-elevated/90 backdrop-blur-md border border-grid-line hover:border-primary-container text-on-surface-variant hover:text-primary-container transition-all duration-300 shadow-xl font-label-sm text-[10px] uppercase tracking-wider font-semibold"
           title="Sınırları Göster / Gizle">
-          <span id="boundary-icon-off" class="material-symbols-outlined text-base transition-all" style="font-variation-settings: 'FILL' 0;">shape_line</span>
-          <span id="boundary-icon-on" class="material-symbols-outlined text-base text-primary-container hidden transition-all" style="font-variation-settings: 'FILL' 1;">shape_line</span>
+          <span id="boundary-icon-off" class="material-symbols-outlined text-base transition-all"
+            style="font-variation-settings: 'FILL' 0;">shape_line</span>
+          <span id="boundary-icon-on"
+            class="material-symbols-outlined text-base text-primary-container hidden transition-all"
+            style="font-variation-settings: 'FILL' 1;">shape_line</span>
           <span id="boundary-btn-label">Sınırlar</span>
           <span id="boundary-active-dot" class="hidden w-1.5 h-1.5 rounded-full bg-primary-container glow-pulse"></span>
         </button>
 
         <!-- Fay Hatları Toggle (sadece uydu modunda görünür) -->
-        <button
-          id="fault-toggle-btn"
+        <button id="fault-toggle-btn"
           class="hidden flex items-center gap-2 px-3 py-2 rounded bg-surface-elevated/90 backdrop-blur-md border border-grid-line hover:border-[#FF6B35] text-on-surface-variant hover:text-[#FF6B35] transition-all duration-300 shadow-xl font-label-sm text-[10px] uppercase tracking-wider font-semibold"
           title="Fay Hatlarını Göster / Gizle">
-          <span id="fault-icon-off" class="material-symbols-outlined text-base" style="font-variation-settings: 'FILL' 0;">ssid_chart</span>
-          <span id="fault-icon-on" class="material-symbols-outlined text-base text-[#FF6B35] hidden" style="font-variation-settings: 'FILL' 1;">ssid_chart</span>
+          <span id="fault-icon-off" class="material-symbols-outlined text-base"
+            style="font-variation-settings: 'FILL' 0;">ssid_chart</span>
+          <span id="fault-icon-on" class="material-symbols-outlined text-base text-[#FF6B35] hidden"
+            style="font-variation-settings: 'FILL' 1;">ssid_chart</span>
           <span id="fault-btn-label">Fay Hatları</span>
-          <span id="fault-active-dot" class="hidden w-1.5 h-1.5 rounded-full bg-[#FF6B35]" style="box-shadow: 0 0 6px #FF6B35;"></span>
+          <span id="fault-active-dot" class="hidden w-1.5 h-1.5 rounded-full bg-[#FF6B35]"
+            style="box-shadow: 0 0 6px #FF6B35;"></span>
         </button>
 
       </div>
@@ -815,13 +926,18 @@
         <!-- Tab 2: Analytics & Stats -->
         <div id="tab-content-stats" class="hidden space-y-6">
           <!-- Modern Bilgi Bannerı -->
-          <div class="glass-card border border-primary-container/20 rounded p-3 flex items-center gap-3 relative overflow-hidden group/info-banner">
-            <div class="absolute -right-12 -top-12 w-24 h-24 bg-primary-container/5 rounded-full blur-xl group-hover/info-banner:scale-125 transition-transform duration-500"></div>
+          <div
+            class="glass-card border border-primary-container/20 rounded p-3 flex items-center gap-3 relative overflow-hidden group/info-banner">
+            <div
+              class="absolute -right-12 -top-12 w-24 h-24 bg-primary-container/5 rounded-full blur-xl group-hover/info-banner:scale-125 transition-transform duration-500">
+            </div>
             <span class="material-symbols-outlined text-primary-container text-xl animate-pulse shrink-0">info</span>
             <div class="flex flex-col min-w-0">
-              <span class="text-[10px] text-primary-container font-bold tracking-wider uppercase font-label-sm">Veri Kapsamı Bilgilendirmesi</span>
+              <span class="text-[10px] text-primary-container font-bold tracking-wider uppercase font-label-sm">Veri
+                Kapsamı Bilgilendirmesi</span>
               <p class="text-[9.5px] text-on-surface-variant/90 font-label-sm mt-0.5 leading-relaxed">
-                Analiz ve istatistik verileri son <strong class="text-primary-container">7 gün</strong> içerisindeki deprem aktivitelerini kapsamaktadır.
+                Analiz ve istatistik verileri son <strong class="text-primary-container">7 gün</strong> içerisindeki
+                deprem aktivitelerini kapsamaktadır.
               </p>
             </div>
           </div>
@@ -904,7 +1020,7 @@
       <a href="https://github.com/omerc4n/whisper-hava-durumu" target="_blank" rel="noopener noreferrer"
         class="hover:text-white transition-colors uppercase tracking-wider text-[9px] font-semibold">GitHub</a>
       <span>•</span>
-      <a href="https://api.orhanaydogdu.com.tr" target="_blank" rel="noopener noreferrer"
+      <a href="https://github.com/orhanayd/kandilli-rasathanesi-api" target="_blank" rel="noopener noreferrer"
         class="hover:text-white transition-colors uppercase tracking-wider text-[9px] font-semibold">Kandilli API</a>
       <div class="h-3 w-[1px] bg-grid-line hidden sm:block"></div>
       <span id="footer-stats-summary" class="hidden sm:inline">Yükleniyor...</span>
