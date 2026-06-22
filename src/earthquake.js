@@ -323,6 +323,56 @@ function getAbsoluteClosestProvince(lat, lon) {
   return { province: closest, distance: minDist };
 }
 
+// Koordinatın Türkiye sınırları içerisinde olup olmadığını kontrol eder
+function isPointInTurkey(lat, lon) {
+  if (!trCitiesData || !trCitiesData.features) return false;
+  // Hızlandırmak için kaba bir bounding box kontrolü (Türkiye coğrafi sınırları)
+  if (lon < 25.5 || lon > 45.0 || lat < 35.5 || lat > 42.5) return false;
+
+  for (const feature of trCitiesData.features) {
+    const geom = feature.geometry;
+    if (!geom) continue;
+    if (geom.type === 'Polygon') {
+      for (const ring of geom.coordinates) {
+        if (isPointInRing(lon, lat, ring)) return true;
+      }
+    } else if (geom.type === 'MultiPolygon') {
+      for (const polygon of geom.coordinates) {
+        for (const ring of polygon) {
+          if (isPointInRing(lon, lat, ring)) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function isPointInRing(x, y, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    const intersect = ((yi > y) !== (yj > y))
+        && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// Bir fay hattı coğrafi şeklinin (LineString/MultiLineString) Türkiye sınırlarına girip girmediğini kontrol eder
+function isFeatureInTurkey(feature) {
+  const geom = feature.geometry;
+  if (!geom) return false;
+  let coords = [];
+  if (geom.type === 'LineString') {
+    coords = geom.coordinates;
+  } else if (geom.type === 'MultiLineString') {
+    coords = geom.coordinates.flat();
+  }
+  // En az bir koordinat Türkiye sınırları içerisindeyse true döner
+  return coords.some(coord => isPointInTurkey(coord[1], coord[0]));
+}
+
 // Tarih farkını formatlar ve YYYY-MM-DD formatında döner
 function formatOffsetDate(offset) {
   const d = new Date();
@@ -737,7 +787,7 @@ async function locateByIP() {
 
 /* ──────────────── Deprem Verilerini Çekme (USGS / Kandilli) ──────────────── */
 
-async function fetchEarthquakes(lat, lon, name, countryCode = 'TR') {
+async function fetchEarthquakes(lat, lon, name, countryCode = 'TR', isSilent = false) {
   localStorage.setItem('sonSehir',  name);
   localStorage.setItem('sonEnlem',  lat);
   localStorage.setItem('sonBoylam', lon);
@@ -748,7 +798,9 @@ async function fetchEarthquakes(lat, lon, name, countryCode = 'TR') {
     searchInput.value = name;
   }
 
-  setLoading(true);
+  if (!isSilent) {
+    setLoading(true);
+  }
   currentMinMag = 0;
   resetFilterBtns();
 
@@ -792,11 +844,15 @@ async function fetchEarthquakes(lat, lon, name, countryCode = 'TR') {
       console.error('Kandilli hatası, USGS yedeğine bağlanılıyor:', err);
       await fetchUSGS(lat, lon, name);
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   } else {
     await fetchUSGS(lat, lon, name);
-    setLoading(false);
+    if (!isSilent) {
+      setLoading(false);
+    }
   }
 }
 
@@ -983,29 +1039,23 @@ function faultStyle(feature) {
 function drawFaultLines() {
   if (!map) return;
 
-  console.log("drawFaultLines called, faultVisible:", faultVisible, "currentMapLayer:", currentMapLayer);
-  console.log("worldFaults type:", typeof worldFaults, "worldFaults:", worldFaults);
-  if (worldFaults) {
-    console.log("worldFaults features count:", worldFaults.features ? worldFaults.features.length : "no features");
-  }
-
   // Her iki katmanı temizle
   if (faultWorldLayer) { map.removeLayer(faultWorldLayer); faultWorldLayer = null; }
   if (faultLayer) { map.removeLayer(faultLayer); faultLayer = null; }
 
   if (!faultVisible || currentMapLayer !== 'satellite') return;
 
-  // --- 1. Arka plan: Dünya tektonik plaka sınırları (tooltip yok, ince, soluk) ---
+  // --- 1. Arka plan: Dünya tektonik plaka sınırları (tooltip yok, daha belirgin ve görünür) ---
   faultWorldLayer = L.geoJSON(worldFaults, {
     style: {
       color: '#FF6B35',
-      weight: 0.8,
-      opacity: 0.35,
-      dashArray: '3 5'
+      weight: 1.8,
+      opacity: 0.65,
+      dashArray: '4 4'
     }
   }).addTo(map);
 
-  // --- 2. Ön plan: Türkiye fay hatları (tooltip ile, kalhın, parlak) ---
+  // --- 2. Ön plan: Türkiye fay hatları (sadece Türkiye sınırları içindekiler için tooltip ve popup) ---
   faultLayer = L.geoJSON(turkeyFaults, {
     style: (feature) => {
       // GEM slip_type alanına göre renk
@@ -1019,18 +1069,32 @@ function drawFaultLines() {
       return { color: '#FF3D00', weight: 2.2, opacity: 0.95 };
     },
     onEachFeature: (feature, layer) => {
-      const p = feature.properties;
-      const name = p.name || p.fault_name || p.catalog_id || 'Bilinmeyen Fay';
-      const slip = p.slip_type || '';
-      const dip  = p.dip_dir   || '';
-      layer.bindTooltip(
-        `<div style="font-size:11px;line-height:1.5;">
-           <b style="color:#FF6B35;">${name}</b><br>
-           ${slip ? `<span style="color:#aaa">${slip}</span>` : ''}
-           ${dip  ? `<span style="color:#aaa"> &bull; ${dip}</span>` : ''}
-         </div>`,
-        { sticky: true, className: 'fault-tooltip' }
-      );
+      // Sadece Türkiye sınırları içerisindeki fay hatlarına bilgi ver
+      if (isFeatureInTurkey(feature)) {
+        const p = feature.properties;
+        const name = p.name || p.fault_name || p.catalog_id || 'Bilinmeyen Fay';
+        const slip = p.slip_type || '';
+        const dip  = p.dip_dir   || '';
+
+        // Üzerine gelince (Hover) bilgi
+        layer.bindTooltip(
+          `<div style="font-size:11px;line-height:1.5;">
+             <b style="color:#FF6B35;">${name}</b><br>
+             ${slip ? `<span style="color:#aaa">${slip}</span>` : ''}
+             ${dip  ? `<span style="color:#aaa"> &bull; ${dip}</span>` : ''}
+           </div>`,
+          { sticky: true, className: 'fault-tooltip' }
+        );
+
+        // Tıklayınca (Click) detay bilgisi
+        layer.bindPopup(
+          `<div style="font-size:11px;line-height:1.5;padding:4px;">
+             <b style="color:#FF6B35;">${name}</b><br>
+             ${slip ? `<span style="color:#ddd">${slip}</span>` : ''}
+             ${dip  ? `<span style="color:#ddd"> &bull; ${dip}</span>` : ''}
+           </div>`
+        );
+      }
     }
   }).addTo(map);
 }
@@ -1319,7 +1383,7 @@ function startAutoRefresh() {
     const lon     = parseFloat(localStorage.getItem('sonBoylam') || 32.8597);
     const name    = localStorage.getItem('sonSehir')  || 'Ankara, Türkiye';
     const country = localStorage.getItem('sonUlke')   || 'TR';
-    fetchEarthquakes(lat, lon, name, country);
+    fetchEarthquakes(lat, lon, name, country, true); // Sessiz güncelleme (isSilent = true)
   }, 30 * 1000); // 30 saniye
 }
 
