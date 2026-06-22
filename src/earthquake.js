@@ -983,6 +983,12 @@ function faultStyle(feature) {
 function drawFaultLines() {
   if (!map) return;
 
+  console.log("drawFaultLines called, faultVisible:", faultVisible, "currentMapLayer:", currentMapLayer);
+  console.log("worldFaults type:", typeof worldFaults, "worldFaults:", worldFaults);
+  if (worldFaults) {
+    console.log("worldFaults features count:", worldFaults.features ? worldFaults.features.length : "no features");
+  }
+
   // Her iki katmanı temizle
   if (faultWorldLayer) { map.removeLayer(faultWorldLayer); faultWorldLayer = null; }
   if (faultLayer) { map.removeLayer(faultLayer); faultLayer = null; }
