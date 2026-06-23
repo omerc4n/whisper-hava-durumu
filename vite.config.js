@@ -7,7 +7,6 @@ export default defineConfig({
       input: {
         main:       resolve(__dirname, 'index.html'),
         rain:       resolve(__dirname, 'rain.html'),
-        earthquake: resolve(__dirname, 'earthquake.html'),
       },
     },
   },
